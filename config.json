@@ -1,0 +1,39 @@
+{
+  "$comment": "Seurattavat reitit ja asetukset. Asemakoodit ovat VR/Digitraffic-lyhenteitä (stationShortCode). Nimet täytetään automaattisesti Digitrafficista 'npm run seed' -komennolla.",
+
+  "passengers": [{ "type": "ADULT" }],
+  "daysAhead": 60,
+
+  "bothDirections": true,
+  "routes": [
+    { "from": "HKI", "to": "TPE" },
+    { "from": "HKI", "to": "JY" },
+    { "from": "HKI", "to": "OL" },
+    { "from": "HKI", "to": "KUO" },
+    { "from": "HKI", "to": "ROI" },
+    { "from": "HKI", "to": "TKU" },
+    { "from": "HKI", "to": "JNS" },
+    { "from": "TPE", "to": "JY" },
+    { "from": "TPE", "to": "SK" },
+    { "from": "TPE", "to": "OL" },
+    { "from": "JY", "to": "SK" },
+    { "from": "SK", "to": "OL" }
+  ],
+
+  "rateLimit": {
+    "minDelayMs": 3000,
+    "maxDelayMs": 8000,
+    "longPauseEveryN": 50,
+    "longPauseMs": 60000,
+    "maxRetries": 3,
+    "retryBackoffMs": 15000
+  },
+
+  "browser": {
+    "headless": true
+  },
+
+  "server": {
+    "port": 5173
+  }
+}

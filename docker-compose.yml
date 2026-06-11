@@ -1,0 +1,18 @@
+services:
+  web:
+    build: .
+    image: vr-price-checker
+    restart: unless-stopped
+    ports:
+      # host:container — muuta vasen luku jos haluat eri portin ulospäin.
+      - "5173:5173"
+    volumes:
+      # Pysyvä data: SQLite-kanta ja selaimen profiili (WAF-token säilyy).
+      - ./data:/app/data
+      - ./browser-data:/app/browser-data
+      # Reittien muokkaus ilman uudelleenbuildausta.
+      - ./config.json:/app/config.json:ro
+    environment:
+      - PORT=5173
+    # Chromium tarvitsee jaettua muistia; --disable-dev-shm-usage kattaa loput.
+    shm_size: "1gb"

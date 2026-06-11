@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VR hintahistoria</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>VR hintahistoria</h1>
+      <p class="muted">Tarkastele kerättyjä hintoja valitsemallasi reitillä ja aikavälillä.</p>
+    </header>
+
+    <section class="controls">
+      <label>
+        Reitti
+        <select id="route"></select>
+      </label>
+      <label>
+        Alkupäivä
+        <input type="date" id="start" />
+      </label>
+      <label>
+        Loppupäivä
+        <input type="date" id="end" />
+      </label>
+      <button id="load">Hae</button>
+    </section>
+
+    <section class="panel">
+      <h2>Halvin hinta per lähtöpäivä</h2>
+      <p class="muted">
+        Klikkaa pistettä nähdäksesi kyseisen päivän lähdöt.
+        Harmaa tausta ja <span style="color:#e4572e; font-weight:600">oranssi piste</span> = viikonloppu (la–su).
+      </p>
+      <canvas id="calendarChart" height="110"></canvas>
+    </section>
+
+    <section class="panel two-col">
+      <div>
+        <h2 id="depTitle">Lähdöt</h2>
+        <table id="departures">
+          <thead>
+            <tr><th>Lähtö</th><th>Juna</th><th>Hinta</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div>
+        <h2 id="histTitle">Hintakehitys (booking-käyrä)</h2>
+        <p class="muted">Valitse lähtö vasemmalta nähdäksesi miten sen hinta on muuttunut keräyspäivittäin.</p>
+        <canvas id="historyChart" height="160"></canvas>
+      </div>
+    </section>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

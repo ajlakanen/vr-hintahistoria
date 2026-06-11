@@ -1,0 +1,25 @@
+{
+  "name": "vr-price-checker",
+  "version": "0.1.0",
+  "description": "Hakee VR:n matkojen hinnat päivittäin ja tallentaa hintahistorian tietokantaan.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "seed": "tsx src/seedRoutes.ts",
+    "scrape": "tsx src/scrape.ts",
+    "report": "tsx src/report.ts",
+    "progress": "tsx src/progress.ts",
+    "serve": "tsx src/server.ts",
+    "postinstall": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "@types/node": "^22.10.0"
+  }
+}

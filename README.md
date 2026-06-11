@@ -13,6 +13,11 @@ hintahistorian tarkasteluun.
   joten haku tehdään **Playwrightilla** (oikea Chromium) — selain ratkaisee WAF-haasteen ja me
   kaappaamme sen oman API-vastauksen. Pelkkä HTTP-pyyntö ei toimi (WAF estää).
   Hinnat tulevat rajapinnasta sentteinä (esim. `4930` = 49,30 €).
+- **Liikenteen säästö:** ensimmäinen haku tehdään selaimella (ratkaisee WAF-haasteen ja
+  hankkii tokenin), minkä jälkeen haut tehdään kevyellä suoralla API-kutsulla joka
+  uudelleenkäyttää selaimen evästeitä (~58 KB vs. ~1,6 MB sivulataus, **~96 % vähemmän**).
+  Jos suora kutsu epäonnistuu (token vanhentunut/estetty), palataan automaattisesti
+  sivulataukseen. Lisäksi turhat pyynnöt (prefetchit, analytiikka) estetään.
 - Jokainen ajo päivittää taulun `prices` (tuorein hinta per lähtö) ja lisää rivin tauluun
   `price_history` (aikasarja → näkee miten hinta muuttuu lähtöpäivän lähestyessä).
 

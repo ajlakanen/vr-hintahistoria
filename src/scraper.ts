@@ -1,6 +1,7 @@
 import { chromium, type BrowserContext, type Page, type Response } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { PROJECT_ROOT } from "./config.ts";
 import { log } from "./logger.ts";
 import type { JourneyPrice, Passenger } from "./types.ts";
@@ -54,6 +55,9 @@ export class VrScraper {
   private ctx: BrowserContext | null = null;
   private page: Page | null = null;
   private debugSaved = false;
+  // Onko WAF-token jo hankittu (sivulataus tehty)? Tämän jälkeen voidaan käyttää
+  // kevyttä suoraa API-kutsua, joka uudelleenkäyttää selaimen evästeitä.
+  private warmed = false;
 
   constructor(private headless: boolean) {}
 
@@ -95,9 +99,37 @@ export class VrScraper {
     return url;
   }
 
+  /** tRPC-hintahaun suora URL (sama jonka sivun sovellus muodostaa). */
+  private buildTrpcUrl(from: string, to: string, date: string, passengers: Passenger[]): string {
+    const input = {
+      "0": {
+        locale: "fi",
+        arrivalStation: to,
+        departureStation: from,
+        departureTime: date,
+        passengers: passengers.map((p) => ({
+          key: randomUUID(),
+          type: p.type,
+          wheelchair: false,
+          vehicles: [],
+        })),
+        placeTypes: ["SEAT", "CABIN_SEAT", "CABIN_BED"],
+        filters: [],
+      },
+    };
+    return (
+      "https://www.vr.fi/api/trpc/journey.searchJourney?batch=1&input=" +
+      encodeURIComponent(JSON.stringify(input))
+    );
+  }
+
   /**
    * Hakee yhden reitin yhden päivän lähdöt hintoineen.
-   * Heittää virheen jos vastausta ei saada (retry hoidetaan scrape.ts:ssä).
+   *
+   * Ensimmäinen haku tehdään sivulatauksella (ratkaisee WAF-haasteen, hankkii tokenin).
+   * Sen jälkeen käytetään kevyttä suoraa API-kutsua (~95 % vähemmän liikennettä), joka
+   * uudelleenkäyttää selaimen evästeitä. Jos suora kutsu epäonnistuu (token vanhentunut
+   * tai estetty), palataan automaattisesti sivulataukseen — mikään ei riko.
    */
   async fetchJourneys(
     from: string,
@@ -105,6 +137,58 @@ export class VrScraper {
     date: string,
     passengers: Passenger[],
     timeoutMs = 30000
+  ): Promise<JourneyPrice[]> {
+    if (!this.ctx) throw new Error("Scraperia ei ole alustettu (init).");
+
+    if (this.warmed) {
+      try {
+        return await this.fetchViaApi(from, to, date, passengers, timeoutMs);
+      } catch (e) {
+        log.warn(`Suora API-kutsu epäonnistui (${(e as Error).message}) — päivitetään token sivulatauksella.`);
+        this.warmed = false;
+      }
+    }
+
+    const journeys = await this.fetchViaPage(from, to, date, passengers, timeoutMs);
+    this.warmed = true;
+    return journeys;
+  }
+
+  /** Kevyt suora kutsu tRPC-rajapintaan, käyttää selaimen WAF-evästettä. */
+  private async fetchViaApi(
+    from: string,
+    to: string,
+    date: string,
+    passengers: Passenger[],
+    timeoutMs: number
+  ): Promise<JourneyPrice[]> {
+    const res = await this.ctx!.request.get(this.buildTrpcUrl(from, to, date, passengers), {
+      timeout: timeoutMs,
+      headers: {
+        accept: "*/*",
+        referer: "https://www.vr.fi/kertalippu-menomatkan-hakutulokset",
+        "x-trpc-source": "client",
+      },
+    });
+    if (!res.ok()) throw new Error(`API vastasi ${res.status()}`);
+    let json: unknown;
+    try {
+      json = await res.json();
+    } catch {
+      throw new Error("API-vastaus ei ollut JSON (mahd. WAF-haaste)");
+    }
+    const result = parseCaptured([json]);
+    if (!result.ok) throw new Error("API-vastausta ei voitu jäsentää");
+    return result.journeys;
+  }
+
+  /** Raskaampi varatie: lataa hakusivun selaimella ja kaappaa sen API-vastauksen. */
+  private async fetchViaPage(
+    from: string,
+    to: string,
+    date: string,
+    passengers: Passenger[],
+    timeoutMs: number
   ): Promise<JourneyPrice[]> {
     if (!this.page) throw new Error("Scraperia ei ole alustettu (init).");
     const page = this.page;

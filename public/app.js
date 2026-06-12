@@ -98,6 +98,25 @@ const dayMarker = {
   },
 };
 
+// Chart.js-plugin: "Ei tietoja" keskelle, jos valitulla välillä ei ole yhtään pistettä
+// (esim. selattaessa aikaikkunaa kohtaan, jolta hintoja ei ole kerätty).
+const noData = {
+  id: "noData",
+  afterDraw(chart) {
+    const has = (chart.data.datasets || []).some((ds) => (ds.data || []).length > 0);
+    if (has) return;
+    const { ctx, chartArea: area } = chart;
+    if (!area) return;
+    ctx.save();
+    ctx.fillStyle = "#6b7280";
+    ctx.font = "600 15px system-ui, -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Ei tietoja valitulla välillä", (area.left + area.right) / 2, (area.top + area.bottom) / 2);
+    ctx.restore();
+  },
+};
+
 async function json(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
@@ -143,8 +162,8 @@ function shiftRange(dir) {
 function updateRangeNav() {
   const days = rangeDays();
   if (!days) return;
-  $("rangePrev").textContent = `← Edelliset ${days} pv`;
-  $("rangeNext").textContent = `Seuraavat ${days} pv →`;
+  $("rangePrev").textContent = `← Edelliset ${days} päivää`;
+  $("rangeNext").textContent = `Seuraavat ${days} päivää →`;
 }
 
 // ---------- Suomalaismuotoinen päivämääräkenttä (pp.kk.vvvv) ----------
@@ -230,12 +249,12 @@ async function initRoutes() {
     opt.textContent = `${from} → ${to}  (${r.from}–${r.to})`;
     sel.appendChild(opt);
   }
-  // Oletusaikaväli: tästä päivästä eteenpäin. Kapealla näytöllä lyhyempi (21 pv),
-  // jotta käyrä pysyy luettavana ja päiviin osuu sormella; työpöydällä 60 pv.
-  const span = window.innerWidth < 760 ? 21 : 60;
+  // Oletusaikaväli: tästä päivästä eteenpäin (inklusiivinen ikkuna). Kapealla näytöllä
+  // lyhyempi (21 pv), jotta käyrä pysyy luettavana ja päiviin osuu sormella; työpöydällä 60 pv.
+  const windowDays = window.innerWidth < 760 ? 21 : 60;
   const today = new Date();
   const end = new Date();
-  end.setDate(end.getDate() + span);
+  end.setDate(end.getDate() + windowDays - 1);
   $("start").value = isoDate(today);
   $("end").value = isoDate(end);
   $("startText").value = fmtFi($("start").value);
@@ -326,7 +345,7 @@ async function loadCalendar() {
         y: { beginAtZero: false, title: { display: true, text: "€" } },
       },
     },
-    plugins: [weekendBands, dayMarker],
+    plugins: [weekendBands, dayMarker, noData],
   });
 
   if (data.length === 0) {

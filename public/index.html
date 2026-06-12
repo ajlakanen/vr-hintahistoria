@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>VR hintahistoria</title>
+    <title>VR:n dynaamisen hinnoittelun seuraaja</title>
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   </head>
   <body>
     <header>
-      <h1>VR hintahistoria</h1>
+      <h1>VR:n dynaamisen hinnoittelun seuraaja</h1>
       <p class="muted">Tarkastele kerättyjä hintoja valitsemallasi reitillä ja aikavälillä.</p>
       <p class="muted note">
         ℹ️ Seurattavat reitit on valittu Suomen suosituimmista yhteysväleistä matkustajamäärien
@@ -70,6 +70,26 @@
         <canvas id="historyChart" height="160"></canvas>
       </div>
     </section>
+
+    <footer class="site-footer muted">
+      <p>
+        <strong>Hintalähde:</strong> hinnat haetaan automaattisesti
+        <a href="https://www.vr.fi" target="_blank" rel="noopener">VR.fi</a>:n julkisesta
+        hakurajapinnasta. Jokaisesta lähdöstä tallennetaan myös hintahistoria, joten näkyvissä
+        on lähdön koko hintakehitys keräyspäivittäin (ns. booking-käyrä).
+      </p>
+      <p>
+        <strong>Keräysrytmi:</strong> hinnat päivitetään tyypillisesti noin kerran vuorokaudessa.
+        Hinnat ovat suuntaa-antavia eivätkä virallinen lähde — varmista lopullinen hinta aina VR:ltä.
+        Vaihdollisilla yhteysväleillä hinta on koko matkan läpihinta.
+      </p>
+      <p id="footerStats" class="footer-stats"></p>
+      <p>
+        <a href="https://github.com/ajlakanen/vr-hintahistoria" target="_blank" rel="noopener">
+          Lähdekoodi, menetelmä ja seuratut reitit GitHubissa →
+        </a>
+      </p>
+    </footer>
 
     <script src="app.js"></script>
   </body>

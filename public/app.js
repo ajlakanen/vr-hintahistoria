@@ -167,6 +167,10 @@ async function loadCalendar() {
   const end = $("end").value;
   if (!currentRouteId || !start || !end) return;
 
+  // Reitti/aikaväli vaihtui -> edellisen päivän lähdöt ja hintakäyrä eivät enää vastaa
+  // valintaa. Nollataan ne kehotteeksi.
+  resetDetails();
+
   let data;
   if (STATIC) {
     const blob = await routeData(currentRouteId);
@@ -236,6 +240,27 @@ function clearDepartures(msg) {
   $("departures").querySelector("tbody").innerHTML =
     `<tr><td colspan="3" class="muted">${msg || ""}</td></tr>`;
   if (historyChart) { historyChart.destroy(); historyChart = null; }
+}
+
+/** Palauttaa lähtölistan ja hintakäyrän alkutilaan (esim. reittiä vaihdettaessa). */
+function resetDetails() {
+  $("depTitle").textContent = "Lähdöt";
+  $("histTitle").textContent = "Hintakehitys (booking-käyrä)";
+  clearDepartures("Klikkaa päivää yllä olevasta käyrästä nähdäksesi sen lähdöt.");
+}
+
+/** Täyttää footerin tilatiedot (seurattujen reittien määrä, datan päivitysaika). */
+function renderFooter() {
+  const el = $("footerStats");
+  if (!el || !STATIC || !manifest) return;
+  const parts = [`${manifest.routes.length} seurattua suuntaa`];
+  if (manifest.generatedAt) {
+    const fmt = new Date(manifest.generatedAt).toLocaleString("fi-FI", {
+      day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    parts.push(`data päivitetty ${fmt}`);
+  }
+  el.innerHTML = `<strong>Tilanne:</strong> ${parts.join(" · ")}.`;
 }
 
 async function loadDepartures(travelDate) {
@@ -322,4 +347,5 @@ document.querySelectorAll(".cal-btn").forEach((btn) => {
 detectMode()
   .then(initRoutes)
   .then(loadCalendar)
+  .then(renderFooter)
   .catch((e) => alert("Virhe: " + e.message));

@@ -21,6 +21,15 @@ body {
 
 header h1 { margin: 0 0 0.25rem; color: var(--green); }
 .muted { color: var(--muted); font-size: 0.9rem; margin: 0.25rem 0; }
+
+.site-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+}
+.site-footer p { margin: 0.4rem 0; }
+.footer-stats { font-size: 0.85rem; }
 .note {
   background: #f0fbf4;
   border: 1px solid var(--border);

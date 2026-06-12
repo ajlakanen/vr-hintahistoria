@@ -232,21 +232,29 @@ async function loadCalendar() {
   });
 
   if (data.length === 0) {
-    clearDepartures("Ei dataa valitulla välillä — onko keräys (npm run scrape) ajettu?");
+    showDepHint("Ei dataa valitulla välillä — onko keräys (npm run scrape) ajettu?");
   }
 }
 
-function clearDepartures(msg) {
-  $("departures").querySelector("tbody").innerHTML =
-    `<tr><td colspan="3" class="muted">${msg || ""}</td></tr>`;
+/** Näyttää lähtöpaneelissa infotekstin taulukon sijaan (kun päivää ei ole valittu / ei dataa). */
+function showDepHint(msg) {
+  $("depHint").textContent = msg;
+  $("depHint").hidden = false;
+  $("departures").hidden = true;
+  $("departures").querySelector("tbody").innerHTML = "";
+}
+
+/** Palauttaa hintakäyrän alkutilaan. */
+function clearHistory() {
+  $("histTitle").textContent = "Hintakehitys (booking-käyrä)";
   if (historyChart) { historyChart.destroy(); historyChart = null; }
 }
 
 /** Palauttaa lähtölistan ja hintakäyrän alkutilaan (esim. reittiä vaihdettaessa). */
 function resetDetails() {
   $("depTitle").textContent = "Lähdöt";
-  $("histTitle").textContent = "Hintakehitys (booking-käyrä)";
-  clearDepartures("Klikkaa päivää yllä olevasta käyrästä nähdäksesi sen lähdöt.");
+  showDepHint("Klikkaa päivää yllä olevasta käyrästä nähdäksesi sen lähdöt.");
+  clearHistory();
 }
 
 /** Täyttää footerin tilatiedot (seurattujen reittien määrä, datan päivitysaika). */
@@ -274,9 +282,12 @@ async function loadDepartures(travelDate) {
       `/api/departures?route_id=${currentRouteId}&travel_date=${travelDate}`
     );
   }
+  if (rows.length === 0) { showDepHint("Ei lähtöjä tälle päivälle."); clearHistory(); return; }
+  // Näytä taulukko, piilota infoteksti.
+  $("depHint").hidden = true;
+  $("departures").hidden = false;
   const tbody = $("departures").querySelector("tbody");
   tbody.innerHTML = "";
-  if (rows.length === 0) { clearDepartures("Ei lähtöjä tälle päivälle."); return; }
   for (const r of rows) {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${r.time}</td><td>${r.train || ""}</td><td>${r.price.toFixed(2)} ${r.currency}</td>`;

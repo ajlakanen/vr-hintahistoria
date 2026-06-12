@@ -55,7 +55,9 @@ header h1 { margin: 0 0 0.25rem; color: var(--green); }
   padding: 0.5rem;
   border: 1px solid var(--border);
   border-radius: 8px;
-  font-size: 0.95rem;
+  /* Vähintään 16px: estää iOS Safaria zoomaamasta (ja sallimasta vaakavieritystä)
+     kun tekstikenttään napautetaan. */
+  font-size: 16px;
 }
 button {
   background: var(--green);

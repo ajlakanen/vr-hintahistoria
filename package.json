@@ -12,6 +12,7 @@
     "report": "tsx src/report.ts",
     "progress": "tsx src/progress.ts",
     "export": "tsx src/export.ts",
+    "deploy": "node scripts/deploy.mjs",
     "serve": "tsx src/server.ts",
     "postinstall": "playwright install chromium"
   },

@@ -44,6 +44,8 @@ function main(): void {
   rmSync(DOCS_DIR, { recursive: true, force: true });
   mkdirSync(DATA_DIR, { recursive: true });
   cpSync(PUBLIC_DIR, DOCS_DIR, { recursive: true });
+  // Estä GitHub Pagesin Jekyll-käsittely (mm. alaviiva-alkuiset tiedostot).
+  writeFileSync(join(DOCS_DIR, ".nojekyll"), "");
 
   const calStmt = db.prepare(
     `SELECT travel_date AS date, MIN(price) AS minPrice, AVG(price) AS avgPrice,

@@ -2,6 +2,32 @@ const $ = (id) => document.getElementById(id);
 let calendarChart, historyChart;
 let currentRouteId = null;
 
+// Staattinen moodi (GitHub Pages): jos data/manifest.json löytyy, data luetaan
+// esirenderöidyistä JSON-tiedostoista API:n sijaan. Muuten käytetään /api/*-backendia.
+let STATIC = false;
+let manifest = null;
+const routeCache = new Map(); // route_id -> esiladattu blob
+
+async function detectMode() {
+  try {
+    const res = await fetch("data/manifest.json", { cache: "no-cache" });
+    if (res.ok) {
+      manifest = await res.json();
+      STATIC = true;
+    }
+  } catch {
+    /* ei manifestia -> API-moodi */
+  }
+}
+
+/** Lataa (ja muistaa) yhden reitin koko datablobin staattisessa moodissa. */
+async function routeData(id) {
+  if (routeCache.has(id)) return routeCache.get(id);
+  const blob = await json(`data/route-${id}.json`);
+  routeCache.set(id, blob);
+  return blob;
+}
+
 // Päivämäärä ilman aikavyöhykesiirtymää (vältetään off-by-one viikonloppupäivissä).
 function weekday(dateStr) {
   return new Date(dateStr + "T00:00:00").getDay(); // 0 = su, 6 = la
@@ -114,7 +140,7 @@ function bindDateField(textId, dateId) {
 }
 
 async function initRoutes() {
-  const routes = await json("/api/routes");
+  const routes = STATIC ? manifest.routes : await json("/api/routes");
   const sel = $("route");
   sel.innerHTML = "";
   for (const r of routes) {
@@ -141,9 +167,15 @@ async function loadCalendar() {
   const end = $("end").value;
   if (!currentRouteId || !start || !end) return;
 
-  const data = await json(
-    `/api/calendar?route_id=${currentRouteId}&start=${start}&end=${end}`
-  );
+  let data;
+  if (STATIC) {
+    const blob = await routeData(currentRouteId);
+    data = blob.calendar.filter((d) => d.date >= start && d.date <= end);
+  } else {
+    data = await json(
+      `/api/calendar?route_id=${currentRouteId}&start=${start}&end=${end}`
+    );
+  }
 
   const labels = data.map((d) => d.date);
   const mins = data.map((d) => d.minPrice);
@@ -208,9 +240,15 @@ function clearDepartures(msg) {
 
 async function loadDepartures(travelDate) {
   $("depTitle").textContent = `Lähdöt — ${travelDate}`;
-  const rows = await json(
-    `/api/departures?route_id=${currentRouteId}&travel_date=${travelDate}`
-  );
+  let rows;
+  if (STATIC) {
+    const blob = await routeData(currentRouteId);
+    rows = blob.departures[travelDate] || [];
+  } else {
+    rows = await json(
+      `/api/departures?route_id=${currentRouteId}&travel_date=${travelDate}`
+    );
+  }
   const tbody = $("departures").querySelector("tbody");
   tbody.innerHTML = "";
   if (rows.length === 0) { clearDepartures("Ei lähtöjä tälle päivälle."); return; }
@@ -228,9 +266,15 @@ async function loadDepartures(travelDate) {
 
 async function loadHistory(travelDate, time) {
   $("histTitle").textContent = `Hintakehitys — ${travelDate} klo ${time}`;
-  const rows = await json(
-    `/api/history?route_id=${currentRouteId}&travel_date=${travelDate}&departure_time=${encodeURIComponent(time)}`
-  );
+  let rows;
+  if (STATIC) {
+    const blob = await routeData(currentRouteId);
+    rows = blob.history[`${travelDate}|${time}`] || [];
+  } else {
+    rows = await json(
+      `/api/history?route_id=${currentRouteId}&travel_date=${travelDate}&departure_time=${encodeURIComponent(time)}`
+    );
+  }
   if (historyChart) historyChart.destroy();
   historyChart = new Chart($("historyChart"), {
     type: "line",
@@ -275,6 +319,7 @@ document.querySelectorAll(".cal-btn").forEach((btn) => {
   });
 });
 
-initRoutes()
+detectMode()
+  .then(initRoutes)
   .then(loadCalendar)
   .catch((e) => alert("Virhe: " + e.message));

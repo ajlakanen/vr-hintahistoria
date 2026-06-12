@@ -8,6 +8,8 @@
   "freshnessHours": 5,
 
   "bothDirections": true,
+
+  "$comment_routes": "Reitit on valittu Suomen vilkkaimmista kaukoliikenteen yhteysväleistä (lähteet: Väylävirasto/paarata.fi matkustajamäärät). Suorien Helsinki-välien lisäksi mukana on suosittuja poikittais- ja yhdistelmävälejä, joilla matkalla voi olla vaihto — VR hinnoittelee ne läpi (totalPrice), joten hinta näkyy oikein.",
   "routes": [
     { "from": "HKI", "to": "TPE" },
     { "from": "HKI", "to": "JY" },
@@ -16,18 +18,36 @@
     { "from": "HKI", "to": "ROI" },
     { "from": "HKI", "to": "TKU" },
     { "from": "HKI", "to": "JNS" },
+
+    { "from": "HKI", "to": "LH" },
+    { "from": "HKI", "to": "KV" },
+    { "from": "HKI", "to": "LR" },
+    { "from": "HKI", "to": "HL" },
+    { "from": "HKI", "to": "VS" },
+    { "from": "HKI", "to": "PRI" },
+    { "from": "HKI", "to": "MI" },
+
     { "from": "TPE", "to": "JY" },
     { "from": "TPE", "to": "SK" },
     { "from": "TPE", "to": "OL" },
     { "from": "JY", "to": "SK" },
-    { "from": "SK", "to": "OL" }
+    { "from": "SK", "to": "OL" },
+
+    { "from": "TKU", "to": "TPE" },
+    { "from": "TKU", "to": "JY" },
+    { "from": "TPE", "to": "KUO" },
+    { "from": "TPE", "to": "VS" },
+    { "from": "TPE", "to": "ROI" },
+    { "from": "JY", "to": "OL" },
+    { "from": "OL", "to": "ROI" },
+    { "from": "SK", "to": "VS" }
   ],
 
   "rateLimit": {
-    "minDelayMs": 3000,
-    "maxDelayMs": 8000,
-    "longPauseEveryN": 50,
-    "longPauseMs": 60000,
+    "minDelayMs": 1500,
+    "maxDelayMs": 4000,
+    "longPauseEveryN": 75,
+    "longPauseMs": 30000,
     "maxRetries": 3,
     "retryBackoffMs": 15000
   },

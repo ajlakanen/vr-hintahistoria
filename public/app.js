@@ -7,6 +7,7 @@ let currentRouteId = null;
 let STATIC = false;
 let manifest = null;
 const routeCache = new Map(); // route_id -> esiladattu blob
+const routesById = new Map(); // route_id -> { from, to, fromName, toName }
 
 async function detectMode() {
   try {
@@ -84,6 +85,11 @@ function fmtFi(iso) {
   return `${d}.${m}.${y}`;
 }
 
+/** "2026-06-13" -> "13.6.2026" (suomalainen näyttömuoto ilman etunollia). */
+function fmtFiDate(iso) {
+  return new Date(iso + "T00:00:00").toLocaleDateString("fi-FI");
+}
+
 /** "12.6.2026" tai "12.06.2026" -> "2026-06-12", tai null jos kelvoton. */
 function parseFi(s) {
   const m = s.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
@@ -143,7 +149,9 @@ async function initRoutes() {
   const routes = STATIC ? manifest.routes : await json("/api/routes");
   const sel = $("route");
   sel.innerHTML = "";
+  routesById.clear();
   for (const r of routes) {
+    routesById.set(r.id, r);
     const opt = document.createElement("option");
     opt.value = r.id;
     const from = r.fromName || r.from;
@@ -244,9 +252,10 @@ function showDepHint(msg) {
   $("departures").querySelector("tbody").innerHTML = "";
 }
 
-/** Palauttaa hintakäyrän alkutilaan. */
+/** Palauttaa hintakäyrän alkutilaan (näyttää taas kehotteen). */
 function clearHistory() {
   $("histTitle").textContent = "Hintakehitys (booking-käyrä)";
+  $("histHint").hidden = false;
   if (historyChart) { historyChart.destroy(); historyChart = null; }
 }
 
@@ -272,7 +281,10 @@ function renderFooter() {
 }
 
 async function loadDepartures(travelDate) {
-  $("depTitle").textContent = `Lähdöt — ${travelDate}`;
+  const r = routesById.get(currentRouteId);
+  $("depTitle").textContent = r
+    ? `${r.fromName || r.from}–${r.toName || r.to} ${fmtFiDate(travelDate)}`
+    : `Lähdöt — ${fmtFiDate(travelDate)}`;
   let rows;
   if (STATIC) {
     const blob = await routeData(currentRouteId);
@@ -301,7 +313,8 @@ async function loadDepartures(travelDate) {
 }
 
 async function loadHistory(travelDate, time) {
-  $("histTitle").textContent = `Hintakehitys — ${travelDate} klo ${time}`;
+  $("histHint").hidden = true;
+  $("histTitle").textContent = `Hintakehitys — ${fmtFiDate(travelDate)} klo ${time}`;
   let rows;
   if (STATIC) {
     const blob = await routeData(currentRouteId);

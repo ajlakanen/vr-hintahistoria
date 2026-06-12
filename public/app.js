@@ -49,6 +49,70 @@ function isoDate(d) {
   return d.toISOString().slice(0, 10);
 }
 
+// ---------- Suomalaismuotoinen päivämääräkenttä (pp.kk.vvvv) ----------
+
+/** "2026-06-12" -> "12.06.2026" (tyhjä jos ei arvoa). */
+function fmtFi(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+/** "12.6.2026" tai "12.06.2026" -> "2026-06-12", tai null jos kelvoton. */
+function parseFi(s) {
+  const m = s.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return null;
+  const d = +m[1], mo = +m[2], y = +m[3];
+  const dt = new Date(y, mo - 1, d);
+  // Hylkää ylivuodot (esim. 31.02.) — Date korjaisi ne hiljaa seuraavaan kuukauteen.
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  const p = (n) => String(n).padStart(2, "0");
+  return `${y}-${p(mo)}-${p(d)}`;
+}
+
+/**
+ * Kytkee näkyvän tekstikentän (pp.kk.vvvv) ja piilotetun natiivin date-inputin yhteen.
+ * Natiivi pitää ISO-arvon, jota muu koodi lukee; tekstikenttä on käyttäjälle näkyvä.
+ */
+function bindDateField(textId, dateId) {
+  const text = $(textId);
+  const date = $(dateId);
+
+  // Kalenterivalinta -> tekstikenttä.
+  date.addEventListener("input", () => {
+    text.value = fmtFi(date.value);
+    text.classList.remove("invalid");
+  });
+
+  // Tekstisyöte -> natiivi (vahvistus blurilla / Enterillä).
+  const commit = () => {
+    const raw = text.value.trim();
+    if (raw === "") {
+      text.classList.remove("invalid");
+      if (date.value) {
+        date.value = "";
+        date.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      return;
+    }
+    const iso = parseFi(raw);
+    if (!iso) {
+      text.classList.add("invalid");
+      return;
+    }
+    text.value = fmtFi(iso); // normalisoi esim. 12.6.2026 -> 12.06.2026
+    text.classList.remove("invalid");
+    if (date.value !== iso) {
+      date.value = iso;
+      date.dispatchEvent(new Event("change", { bubbles: true })); // laukaisee loadCalendarin
+    }
+  };
+  text.addEventListener("blur", commit);
+  text.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+  });
+}
+
 async function initRoutes() {
   const routes = await json("/api/routes");
   const sel = $("route");
@@ -67,6 +131,8 @@ async function initRoutes() {
   end.setDate(end.getDate() + 60);
   $("start").value = isoDate(today);
   $("end").value = isoDate(end);
+  $("startText").value = fmtFi($("start").value);
+  $("endText").value = fmtFi($("end").value);
 }
 
 async function loadCalendar() {
@@ -194,6 +260,20 @@ $("load").addEventListener("click", loadCalendar);
 $("route").addEventListener("change", loadCalendar);
 $("start").addEventListener("change", loadCalendar);
 $("end").addEventListener("change", loadCalendar);
+
+// Suomalaismuotoiset päivämääräkentät + kalenteripainikkeet.
+bindDateField("startText", "start");
+bindDateField("endText", "end");
+document.querySelectorAll(".cal-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const date = $(btn.dataset.target);
+    if (typeof date.showPicker === "function") {
+      try { date.showPicker(); return; } catch { /* fallback alla */ }
+    }
+    date.focus();
+    date.click();
+  });
+});
 
 initRoutes()
   .then(loadCalendar)

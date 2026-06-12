@@ -21,6 +21,14 @@ body {
 
 header h1 { margin: 0 0 0.25rem; color: var(--green); }
 .muted { color: var(--muted); font-size: 0.9rem; margin: 0.25rem 0; }
+.note {
+  background: #f0fbf4;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--green);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  max-width: 60ch;
+}
 
 .controls {
   display: flex;
@@ -50,6 +58,14 @@ button {
   cursor: pointer;
 }
 button:hover { filter: brightness(0.95); }
+
+/* Suomalaismuotoinen päivämääräkenttä (pp.kk.vvvv) + kalenteripainike.
+   Natiivi <input type=date> on piilossa hoitamassa kalenterivalitsinta. */
+.datefield { display: flex; align-items: stretch; position: relative; }
+.date-text { flex: 1 1 7rem; border-radius: 8px 0 0 8px !important; border-right: 0 !important; }
+.date-text.invalid { border-color: #e4572e !important; }
+.cal-btn { border-radius: 0 8px 8px 0; padding: 0 0.55rem; font-size: 1rem; line-height: 1; }
+.date-native { position: absolute; bottom: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
 .panel {
   background: var(--card);

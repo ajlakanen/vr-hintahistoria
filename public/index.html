@@ -11,6 +11,10 @@
     <header>
       <h1>VR hintahistoria</h1>
       <p class="muted">Tarkastele kerättyjä hintoja valitsemallasi reitillä ja aikavälillä.</p>
+      <p class="muted note">
+        ℹ️ Seurattavat reitit on valittu tärkeimmistä yhteysväleistä — kaikkien mahdollisten
+        asemavälien hintojen kerääminen olisi liian raskasta ja hidasta.
+      </p>
     </header>
 
     <section class="controls">
@@ -20,11 +24,21 @@
       </label>
       <label>
         Alkupäivä
-        <input type="date" id="start" />
+        <span class="datefield">
+          <input type="text" id="startText" class="date-text" inputmode="numeric"
+                 placeholder="pp.kk.vvvv" autocomplete="off" aria-label="Alkupäivä (pp.kk.vvvv)" />
+          <button type="button" class="cal-btn" data-target="start" aria-label="Avaa kalenteri">📅</button>
+          <input type="date" id="start" class="date-native" tabindex="-1" aria-hidden="true" />
+        </span>
       </label>
       <label>
         Loppupäivä
-        <input type="date" id="end" />
+        <span class="datefield">
+          <input type="text" id="endText" class="date-text" inputmode="numeric"
+                 placeholder="pp.kk.vvvv" autocomplete="off" aria-label="Loppupäivä (pp.kk.vvvv)" />
+          <button type="button" class="cal-btn" data-target="end" aria-label="Avaa kalenteri">📅</button>
+          <input type="date" id="end" class="date-native" tabindex="-1" aria-hidden="true" />
+        </span>
       </label>
       <button id="load">Hae</button>
     </section>

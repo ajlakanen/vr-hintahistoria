@@ -1,5 +1,5 @@
 import { loadConfig } from "./config.ts";
-import { getActiveRoutes, recordPrice } from "./db.ts";
+import { getActiveRoutes, recordPrice, lastScrapedAt } from "./db.ts";
 import { VrScraper } from "./scraper.ts";
 import { RateLimiter, sleep } from "./rateLimiter.ts";
 import { log } from "./logger.ts";
@@ -26,8 +26,10 @@ async function main(): Promise<void> {
   const scrapeDate = dateStr(0);
   const dates = Array.from({ length: cfg.daysAhead }, (_, i) => dateStr(i));
   const total = routes.length * dates.length;
+  const freshnessMs = cfg.freshnessHours * 3_600_000;
   log.info(
-    `Aloitetaan keräys: ${routes.length} reittiä × ${dates.length} päivää = ${total} hakua. Ajopäivä ${scrapeDate}.`
+    `Aloitetaan keräys: ${routes.length} reittiä × ${dates.length} päivää = ${total} hakua. Ajopäivä ${scrapeDate}.` +
+      (freshnessMs > 0 ? ` Ohitetaan alle ${cfg.freshnessHours} h vanhat haut (jatka kesken jäänyt ajo).` : "")
   );
 
   const limiter = new RateLimiter(cfg.rateLimit);
@@ -37,12 +39,27 @@ async function main(): Promise<void> {
   let done = 0;
   let rowsWritten = 0;
   let failures = 0;
+  let skipped = 0;
 
   try {
     for (const route of routes) {
       for (const date of dates) {
         done++;
         const tag = `${route.from_code}->${route.to_code} ${date} (${done}/${total})`;
+
+        // Jatka kesken jäänyt ajo: ohita yhdistelmä, joka on jo haettu äskettäin.
+        if (freshnessMs > 0) {
+          const last = lastScrapedAt(route.id, date);
+          if (last) {
+            const ageMs = Date.now() - new Date(last).getTime();
+            if (ageMs < freshnessMs) {
+              skipped++;
+              log.info(`${tag}: ohitettu, haettu ${(ageMs / 3_600_000).toFixed(1)} h sitten.`);
+              continue; // ei verkkoliikennettä -> ei myöskään rate-limit-odotusta
+            }
+          }
+        }
+
         let ok = false;
         for (let attempt = 1; attempt <= cfg.rateLimit.maxRetries && !ok; attempt++) {
           try {
@@ -73,7 +90,8 @@ async function main(): Promise<void> {
   }
 
   log.info(
-    `Valmis. Historiarivejä lisätty: ${rowsWritten}. Epäonnistuneita hakuja: ${failures}/${total}.`
+    `Valmis. Historiarivejä lisätty: ${rowsWritten}. Ohitettu tuoreina: ${skipped}. ` +
+      `Epäonnistuneita hakuja: ${failures}/${total}.`
   );
 }
 

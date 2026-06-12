@@ -96,6 +96,22 @@ export function getRouteByCodes(fromCode: string, toCode: string): RouteRow | un
 }
 
 /**
+ * Palauttaa tuoreimman scrape-hetken (scraped_at, UTC ISO) annetulle reitti+lähtöpäivä
+ * -yhdistelmälle, tai null jos sitä ei ole vielä kertaakaan haettu. Käytetään keräyksen
+ * jatkamiseen: tuoretta yhdistelmää ei haeta uudestaan.
+ */
+export function lastScrapedAt(routeId: number, travelDate: string): string | null {
+  const row = getDb()
+    .prepare(
+      `SELECT MAX(scraped_at) AS last
+       FROM price_history
+       WHERE route_id = ? AND travel_date = ?`
+    )
+    .get(routeId, travelDate) as { last: string | null } | undefined;
+  return row?.last ?? null;
+}
+
+/**
  * Tallentaa yhden lähdön hinnan: päivittää 'prices' (upsert) ja lisää
  * 'price_history' -rivin (yksi per ajopäivä). Palauttaa true jos uusi historiarivi syntyi.
  */

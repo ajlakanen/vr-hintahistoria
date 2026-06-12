@@ -4,6 +4,9 @@
   "passengers": [{ "type": "ADULT" }],
   "daysAhead": 60,
 
+  "$comment_freshness": "Ohita reitti+lähtöpäivä, joka on haettu alle freshnessHours tuntia sitten. Näin kesken jäänyt (esim. kaatunut) ajo jatkaa siitä mihin jäi, eikä koko keräystä tehdä alusta. 0 = hae aina kaikki.",
+  "freshnessHours": 5,
+
   "bothDirections": true,
   "routes": [
     { "from": "HKI", "to": "TPE" },

@@ -19,6 +19,8 @@ export interface RateLimitConfig {
 export interface AppConfig {
   passengers: Passenger[];
   daysAhead: number;
+  /** Ohita reitti+päivä, jonka viimeisin scrape on tätä tuoreempi (tunteina). 0 = ei ohitusta. */
+  freshnessHours: number;
   bothDirections: boolean;
   routes: RouteSpec[];
   rateLimit: RateLimitConfig;

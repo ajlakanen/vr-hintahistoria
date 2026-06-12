@@ -20,6 +20,8 @@ export function loadConfig(): AppConfig {
     throw new Error("config.json: 'routes' on tyhjä — lisää vähintään yksi reitti.");
   }
   if (!cfg.daysAhead || cfg.daysAhead < 1) cfg.daysAhead = 60;
+  // freshnessHours: oletus 5 h. Salli 0 (= ei ohitusta), hylkää epäkelvot arvot.
+  if (typeof cfg.freshnessHours !== "number" || cfg.freshnessHours < 0) cfg.freshnessHours = 5;
   if (!cfg.passengers || cfg.passengers.length === 0) {
     cfg.passengers = [{ type: "ADULT" }];
   }

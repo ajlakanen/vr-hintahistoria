@@ -32,6 +32,31 @@ async function routeData(id) {
   return blob;
 }
 
+const yBoundsCache = new Map(); // route_id -> { min, max } | null
+
+/** Y-akselin rajat reitin KOKO datasta, jotta asteikko pysyy vakiona ikkunaa selatessa. */
+function computeYBounds(calendar) {
+  let lo = Infinity, hi = -Infinity;
+  for (const d of calendar) {
+    if (d.minPrice < lo) lo = d.minPrice;
+    if (d.avgPrice > hi) hi = d.avgPrice; // ylin piirretty arvo on keskihintakäyrä
+  }
+  if (!isFinite(lo) || !isFinite(hi)) return null;
+  const pad = Math.max(1, (hi - lo) * 0.05);
+  return { min: Math.max(0, Math.floor(lo - pad)), max: Math.ceil(hi + pad) };
+}
+
+/** Reittikohtaiset y-akselin rajat (välimuistitettu); toimii staattisessa ja API-moodissa. */
+async function routeYBounds(routeId) {
+  if (yBoundsCache.has(routeId)) return yBoundsCache.get(routeId);
+  const calendar = STATIC
+    ? (await routeData(routeId)).calendar
+    : await json(`/api/calendar?route_id=${routeId}&start=2000-01-01&end=2100-12-31`);
+  const bounds = computeYBounds(calendar);
+  yBoundsCache.set(routeId, bounds);
+  return bounds;
+}
+
 // Päivämäärä ilman aikavyöhykesiirtymää (vältetään off-by-one viikonloppupäivissä).
 function weekday(dateStr) {
   return new Date(dateStr + "T00:00:00").getDay(); // 0 = su, 6 = la
@@ -284,6 +309,9 @@ async function loadCalendar() {
     );
   }
 
+  // Kiinteät y-akselin rajat reitin koko datasta -> asteikko ei hyppi ikkunaa selatessa.
+  const yBounds = await routeYBounds(currentRouteId);
+
   const labels = data.map((d) => d.date);
   const mins = data.map((d) => d.minPrice);
   const avgs = data.map((d) => d.avgPrice);
@@ -344,7 +372,12 @@ async function loadCalendar() {
             maxTicksLimit: window.innerWidth < NARROW ? 7 : 16,
           },
         },
-        y: { beginAtZero: false, title: { display: true, text: "€" } },
+        y: {
+          beginAtZero: false,
+          min: yBounds ? yBounds.min : undefined,
+          max: yBounds ? yBounds.max : undefined,
+          title: { display: true, text: "€" },
+        },
       },
     },
     plugins: [weekendBands, dayMarker, noData],

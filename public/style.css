@@ -84,7 +84,24 @@ button:hover { filter: brightness(0.95); }
   margin-bottom: 1.25rem;
 }
 .panel h2 { margin: 0 0 0.25rem; font-size: 1.1rem; }
+
+/* Käyrälaatikko antaa kaaviolle kiinteän korkeuden (maintainAspectRatio: false),
+   jotta se ei litisty matalaksi kapealla näytöllä. */
+.chart-box { position: relative; height: 240px; }
+.chart-box--hist { height: 260px; }
 #calendarChart { cursor: pointer; }
+/* Pystyvieritys toimii sormella käyrän päältäkin; napautus valitsee päivän. */
+#calendarChart { touch-action: pan-y; }
+
+@media (max-width: 760px) {
+  .chart-box { height: 300px; }
+  .chart-box--hist { height: 280px; }
+}
+
+/* Aikaikkunan selaus käyrän alla (edelliset / seuraavat). */
+.range-nav { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 0.6rem; }
+.range-btn { background: var(--card); color: var(--text); border: 1px solid var(--border); flex: 1; }
+.range-btn:hover { background: #f0fbf4; filter: none; }
 
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }

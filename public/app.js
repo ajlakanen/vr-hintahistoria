@@ -108,6 +108,45 @@ function isoDate(d) {
   return d.toISOString().slice(0, 10);
 }
 
+/** Lisää n päivää ISO-päivään (YYYY-MM-DD) paikallisaika huomioiden. */
+function addDaysIso(iso, n) {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  const p = (x) => String(x).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Aikaikkunan pituus päivinä (start–end mukaan lukien). */
+function rangeDays() {
+  const s = $("start").value, e = $("end").value;
+  if (!s || !e) return 0;
+  return Math.round((new Date(e + "T00:00:00") - new Date(s + "T00:00:00")) / 86400000) + 1;
+}
+
+/** Asettaa aikavälin kenttiin (ISO + suomalainen näyttö) ja lataa käyrän. */
+function setRange(s, e) {
+  $("start").value = s;
+  $("end").value = e;
+  $("startText").value = fmtFi(s);
+  $("endText").value = fmtFi(e);
+  loadCalendar();
+}
+
+/** Siirtää näkyvää aikaikkunaa yhden ikkunan verran taakse/eteen. */
+function shiftRange(dir) {
+  const days = rangeDays();
+  if (!days) return;
+  setRange(addDaysIso($("start").value, days * dir), addDaysIso($("end").value, days * dir));
+}
+
+/** Päivittää selausnappien tekstit ikkunan pituuden mukaan. */
+function updateRangeNav() {
+  const days = rangeDays();
+  if (!days) return;
+  $("rangePrev").textContent = `← Edelliset ${days} pv`;
+  $("rangeNext").textContent = `Seuraavat ${days} pv →`;
+}
+
 // ---------- Suomalaismuotoinen päivämääräkenttä (pp.kk.vvvv) ----------
 
 /** "2026-06-12" -> "12.06.2026" (tyhjä jos ei arvoa). */
@@ -191,10 +230,12 @@ async function initRoutes() {
     opt.textContent = `${from} → ${to}  (${r.from}–${r.to})`;
     sel.appendChild(opt);
   }
-  // Oletusaikaväli: tästä päivästä 60 päivää eteenpäin.
+  // Oletusaikaväli: tästä päivästä eteenpäin. Kapealla näytöllä lyhyempi (21 pv),
+  // jotta käyrä pysyy luettavana ja päiviin osuu sormella; työpöydällä 60 pv.
+  const span = window.innerWidth < 760 ? 21 : 60;
   const today = new Date();
   const end = new Date();
-  end.setDate(end.getDate() + 60);
+  end.setDate(end.getDate() + span);
   $("start").value = isoDate(today);
   $("end").value = isoDate(end);
   $("startText").value = fmtFi($("start").value);
@@ -210,6 +251,7 @@ async function loadCalendar() {
   // Reitti/aikaväli vaihtui -> edellisen päivän lähdöt ja hintakäyrä eivät enää vastaa
   // valintaa. Nollataan ne kehotteeksi.
   resetDetails();
+  updateRangeNav();
 
   let data;
   if (STATIC) {
@@ -241,14 +283,16 @@ async function loadCalendar() {
           pointBorderColor: "#00a149",
           pointRadius: 2.5,
           pointHoverRadius: 6,
+          pointHitRadius: 14, // osuma lähelle riittää (helpottaa napautusta sormella)
         },
         { label: "Keskihinta (€)", data: avgs, borderColor: "#888", borderDash: [5, 4], tension: 0.2, fill: false, pointRadius: 0 },
       ],
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false, // korkeus tulee .chart-box-laatikosta (luettavampi mobiilissa)
       // Korosta lähin päivä x-akselin perusteella (ei vaadita osumaa pisteeseen) —
-      // helpottaa oikean päivän valintaa kursoria liikuttaessa.
+      // helpottaa oikean päivän valintaa kursoria liikuttaessa / napauttaessa.
       interaction: { mode: "index", intersect: false, axis: "x" },
       onClick: (evt, els, chart) => {
         let idx = els.length ? els[0].index : null;
@@ -270,7 +314,17 @@ async function loadCalendar() {
           },
         },
       },
-      scales: { y: { beginAtZero: false, title: { display: true, text: "€" } } },
+      scales: {
+        x: {
+          ticks: {
+            autoSkip: true,
+            maxRotation: 90,
+            // Harvenna päivämäärämerkinnät, ettei akseli tukkeudu (etenkin mobiilissa).
+            maxTicksLimit: window.innerWidth < 760 ? 7 : 16,
+          },
+        },
+        y: { beginAtZero: false, title: { display: true, text: "€" } },
+      },
     },
     plugins: [weekendBands, dayMarker],
   });
@@ -381,8 +435,12 @@ async function loadHistory(travelDate, time) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false, // korkeus tulee .chart-box-laatikosta
       plugins: { legend: { position: "bottom" } },
-      scales: { x: { title: { display: true, text: "keräyspäivä" } }, y: { title: { display: true, text: "€" } } },
+      scales: {
+        x: { title: { display: true, text: "keräyspäivä" }, ticks: { autoSkip: true, maxTicksLimit: 8 } },
+        y: { title: { display: true, text: "€" } },
+      },
     },
   });
 }
@@ -392,6 +450,10 @@ $("load").addEventListener("click", loadCalendar);
 $("route").addEventListener("change", loadCalendar);
 $("start").addEventListener("change", loadCalendar);
 $("end").addEventListener("change", loadCalendar);
+
+// Aikaikkunan selaus käyrän alta.
+$("rangePrev").addEventListener("click", () => shiftRange(-1));
+$("rangeNext").addEventListener("click", () => shiftRange(1));
 
 // Suomalaismuotoiset päivämääräkentät + kalenteripainikkeet.
 bindDateField("startText", "start");

@@ -48,10 +48,14 @@
     <section class="panel">
       <h2>Halvin hinta ja keskihinta per lähtöpäivä</h2>
       <p class="muted">
-        Vie kursori käyrän päälle ja klikkaa päivää nähdäksesi sen lähdöt — valittu päivä näkyy pystyviivana.
+        Napauta päivää käyrältä nähdäksesi sen lähdöt — valittu päivä näkyy pystyviivana.
         Harmaa tausta = viikonloppu (la–su).
       </p>
-      <canvas id="calendarChart" height="110"></canvas>
+      <div class="chart-box"><canvas id="calendarChart"></canvas></div>
+      <div class="range-nav">
+        <button type="button" id="rangePrev" class="range-btn">← Edelliset</button>
+        <button type="button" id="rangeNext" class="range-btn">Seuraavat →</button>
+      </div>
     </section>
 
     <section class="panel two-col">
@@ -67,8 +71,8 @@
       </div>
       <div>
         <h2 id="histTitle">Hintakehitys (booking-käyrä)</h2>
-        <p class="muted" id="histHint">Valitse lähtö vasemmalta nähdäksesi miten sen hinta on muuttunut keräyspäivittäin.</p>
-        <canvas id="historyChart" height="160"></canvas>
+        <p class="muted" id="histHint">Valitse lähtö nähdäksesi miten sen hinta on muuttunut keräyspäivittäin.</p>
+        <div class="chart-box chart-box--hist"><canvas id="historyChart"></canvas></div>
       </div>
     </section>
 

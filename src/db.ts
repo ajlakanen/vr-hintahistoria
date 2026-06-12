@@ -11,6 +11,10 @@ export function getDb(): DatabaseSync {
   db = new DatabaseSync(DB_PATH);
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
+  // Odota lukon vapautumista jopa 5 s ennen "database is locked" -virhettä. Estää
+  // törmäykset, kun web-UI lukee kantaa samalla kun scrape kirjoittaa (WAL sallii
+  // rinnakkaisen lukijan + yhden kirjoittajan, mutta lyhyet lukkohetket ovat silti mahdollisia).
+  db.exec("PRAGMA busy_timeout = 5000;");
   initSchema(db);
   return db;
 }

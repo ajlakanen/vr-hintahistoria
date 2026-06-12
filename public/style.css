@@ -89,7 +89,7 @@ button:hover { filter: brightness(0.95); }
 
 /* Käyrälaatikko antaa kaaviolle kiinteän korkeuden (maintainAspectRatio: false),
    jotta se ei litisty matalaksi kapealla näytöllä. */
-.chart-box { position: relative; height: 240px; }
+.chart-box { position: relative; height: 340px; }
 .chart-box--hist { height: 260px; }
 #calendarChart { cursor: pointer; }
 /* Pystyvieritys toimii sormella käyrän päältäkin; napautus valitsee päivän. */

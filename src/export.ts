@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, cpSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, cpSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { PROJECT_ROOT, PUBLIC_DIR } from "./config.ts";
 import { getDb, getActiveRoutes } from "./db.ts";
@@ -46,6 +46,15 @@ function main(): void {
   cpSync(PUBLIC_DIR, DOCS_DIR, { recursive: true });
   // Estä GitHub Pagesin Jekyll-käsittely (mm. alaviiva-alkuiset tiedostot).
   writeFileSync(join(DOCS_DIR, ".nojekyll"), "");
+
+  // Välimuistin ohitus: lisää versioleima app.js/style.css-viittauksiin, jotta selain
+  // (etenkin iOS Safari) hakee tuoreet tiedostot eikä tarjoile vanhaa välimuistista.
+  const buildId = new Date().toISOString().replace(/\D/g, "").slice(0, 14); // YYYYMMDDHHMMSS
+  const indexPath = join(DOCS_DIR, "index.html");
+  const html = readFileSync(indexPath, "utf8")
+    .replace('href="style.css"', `href="style.css?v=${buildId}"`)
+    .replace('src="app.js"', `src="app.js?v=${buildId}"`);
+  writeFileSync(indexPath, html);
 
   const calStmt = db.prepare(
     `SELECT travel_date AS date, MIN(price) AS minPrice, AVG(price) AS avgPrice,

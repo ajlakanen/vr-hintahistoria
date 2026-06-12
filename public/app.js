@@ -219,8 +219,16 @@ async function loadCalendar() {
     },
     options: {
       responsive: true,
-      onClick: (_evt, els) => {
-        if (els.length) loadDepartures(labels[els[0].index]);
+      // Korosta lähin päivä x-akselin perusteella (ei vaadita osumaa pisteeseen) —
+      // helpottaa oikean päivän valintaa kursoria liikuttaessa.
+      interaction: { mode: "index", intersect: false, axis: "x" },
+      onClick: (evt, els, chart) => {
+        let idx = els.length ? els[0].index : null;
+        if (idx == null) {
+          const pts = chart.getElementsAtEventForMode(evt, "index", { intersect: false, axis: "x" }, true);
+          if (pts.length) idx = pts[0].index;
+        }
+        if (idx != null) loadDepartures(labels[idx]);
       },
       plugins: {
         legend: { position: "bottom" },

@@ -2,6 +2,8 @@ const $ = (id) => document.getElementById(id);
 let calendarChart, historyChart;
 let currentRouteId = null;
 let selectedDate = null; // kalenterista valittu lähtöpäivä (pystyviivaa varten)
+const NARROW = 760; // leveysraja (sama kuin CSS-media query)
+let narrowMode = window.innerWidth < NARROW;
 
 // Staattinen moodi (GitHub Pages): jos data/manifest.json löytyy, data luetaan
 // esirenderöidyistä JSON-tiedostoista API:n sijaan. Muuten käytetään /api/*-backendia.
@@ -251,7 +253,7 @@ async function initRoutes() {
   }
   // Oletusaikaväli: tästä päivästä eteenpäin (inklusiivinen ikkuna). Kapealla näytöllä
   // lyhyempi (21 pv), jotta käyrä pysyy luettavana ja päiviin osuu sormella; työpöydällä 60 pv.
-  const windowDays = window.innerWidth < 760 ? 21 : 60;
+  const windowDays = window.innerWidth < NARROW ? 21 : 60;
   const today = new Date();
   const end = new Date();
   end.setDate(end.getDate() + windowDays - 1);
@@ -339,7 +341,7 @@ async function loadCalendar() {
             autoSkip: true,
             maxRotation: 90,
             // Harvenna päivämäärämerkinnät, ettei akseli tukkeudu (etenkin mobiilissa).
-            maxTicksLimit: window.innerWidth < 760 ? 7 : 16,
+            maxTicksLimit: window.innerWidth < NARROW ? 7 : 16,
           },
         },
         y: { beginAtZero: false, title: { display: true, text: "€" } },
@@ -473,6 +475,22 @@ $("end").addEventListener("change", loadCalendar);
 // Aikaikkunan selaus käyrän alta.
 $("rangePrev").addEventListener("click", () => shiftRange(-1));
 $("rangeNext").addEventListener("click", () => shiftRange(1));
+
+// Adaptoi layout dynaamisesti kun ikkunan leveys ylittää NARROW-rajan: vaihda
+// oletusikkunan pituus (21/60 pv) nykyisestä alkupäivästä. (Käyrän korkeus ja
+// tick-tiheys hoituvat CSS-media queryllä ja Chart.js:n autoSkipillä.)
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const nowNarrow = window.innerWidth < NARROW;
+    if (nowNarrow === narrowMode) return;
+    narrowMode = nowNarrow;
+    const days = nowNarrow ? 21 : 60;
+    const start = $("start").value || isoDate(new Date());
+    setRange(start, addDaysIso(start, days - 1)); // päivittää kentät + loadCalendar
+  }, 200);
+});
 
 // Suomalaismuotoiset päivämääräkentät + kalenteripainikkeet.
 bindDateField("startText", "start");

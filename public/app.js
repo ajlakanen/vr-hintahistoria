@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 let calendarChart, historyChart;
 let currentRouteId = null;
+let selectedDate = null; // kalenterista valittu lähtöpäivä (pystyviivaa varten)
 
 // Staattinen moodi (GitHub Pages): jos data/manifest.json löytyy, data luetaan
 // esirenderöidyistä JSON-tiedostoista API:n sijaan. Muuten käytetään /api/*-backendia.
@@ -63,6 +64,37 @@ const weekendBands = {
       ctx.fillRect(left, area.top, right - left, area.bottom - area.top);
     }
     ctx.restore();
+  },
+};
+
+// Chart.js-plugin: pystyviiva valitun päivän kohdalle (vihreä) ja kursorin
+// kohdalla olevan päivän kohdalle (himmeä) — helpottaa hahmottamaan valinnan.
+const dayMarker = {
+  id: "dayMarker",
+  afterDraw(chart) {
+    const x = chart.scales.x;
+    const area = chart.chartArea;
+    if (!x || !area) return;
+    const ctx = chart.ctx;
+    const line = (px, color, width, dash) => {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.setLineDash(dash);
+      ctx.beginPath();
+      ctx.moveTo(px, area.top);
+      ctx.lineTo(px, area.bottom);
+      ctx.stroke();
+      ctx.restore();
+    };
+    // Kursorin kohdalla oleva päivä (himmeä katkoviiva).
+    const active = chart.getActiveElements();
+    if (active.length) line(active[0].element.x, "rgba(20,20,20,0.25)", 1, [4, 3]);
+    // Valittu päivä (kiinteä vihreä viiva).
+    if (selectedDate != null) {
+      const idx = (chart.data.labels || []).indexOf(selectedDate);
+      if (idx >= 0) line(x.getPixelForValue(idx), "#00a149", 2, []);
+    }
   },
 };
 
@@ -244,7 +276,7 @@ async function loadCalendar() {
       },
       scales: { y: { beginAtZero: false, title: { display: true, text: "€" } } },
     },
-    plugins: [weekendBands],
+    plugins: [weekendBands, dayMarker],
   });
 
   if (data.length === 0) {
@@ -269,6 +301,7 @@ function clearHistory() {
 
 /** Palauttaa lähtölistan ja hintakäyrän alkutilaan (esim. reittiä vaihdettaessa). */
 function resetDetails() {
+  selectedDate = null;
   $("depTitle").textContent = "Lähdöt";
   showDepHint("Klikkaa päivää yllä olevasta käyrästä nähdäksesi sen lähdöt.");
   clearHistory();
@@ -289,6 +322,8 @@ function renderFooter() {
 }
 
 async function loadDepartures(travelDate) {
+  selectedDate = travelDate;
+  if (calendarChart) calendarChart.update("none"); // piirrä valitun päivän pystyviiva
   const r = routesById.get(currentRouteId);
   $("depTitle").textContent = r
     ? `${r.fromName || r.from}–${r.toName || r.to} ${fmtFiDate(travelDate)}`

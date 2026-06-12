@@ -46,7 +46,7 @@ cd /opt/vr-price-checker
 docker compose build      # lataa Chromiumin, kestää muutaman minuutin
 ```
 
-## 5. Siemennä reitit + testaa WAF yhdellä reitillä
+## 5. Alusta reitit + testaa WAF yhdellä reitillä
 
 ```bash
 # Reitit kantaan (asemanimet Digitrafficista)

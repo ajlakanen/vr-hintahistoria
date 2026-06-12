@@ -4,7 +4,7 @@ import { upsertRoute } from "./db.ts";
 import { log } from "./logger.ts";
 
 /**
- * Siementää 'routes'-taulun config.json:n reiteistä ja täyttää asemanimet
+ * Alustaa 'routes'-taulun config.json:n reiteistä ja täyttää asemanimet
  * Digitrafficista. Aja kerran (ja uudelleen kun muutat reittejä).
  */
 async function main(): Promise<void> {

@@ -1,12 +1,14 @@
 # VR hintahistoria
 
-Hakee VR:n kaukoliikenteen lippujen hinnat päivittäin ja tallentaa ne SQLite-tietokantaan,
-jotta hintojen kehitystä voi seurata ajan suhteen. Mukana selainpohjainen käyttöliittymä
-hintahistorian tarkasteluun.
+Hakee VR:n kaukoliikenteen aikuisen peruslippujen hinnat päivittäin ja tallentaa
+ne SQLite-tietokantaan, jotta hintojen kehitystä voi seurata ajan suhteen.
+Mukana selainpohjainen käyttöliittymä hintahistorian tarkasteluun.
+
+🔗 **Julkinen näkymä:** https://ajlakanen.github.io/vr-hintahistoria/ (staattinen GitHub Pages -julkaisu, päivittyy kun data julkaistaan).
 
 ## Miten tämä toimii
 
-- **Asemat ja reitit** siemennetään [Digitrafficista](https://www.digitraffic.fi/rautatieliikenne/)
+- **Asemat ja reitit** alustetaan [Digitrafficista](https://www.digitraffic.fi/rautatieliikenne/)
   (avoin rajapinta, sisältää asemakoodit ja -nimet, mutta **ei hintoja**).
 - **Hinnat** haetaan VR.fi:n omasta tRPC-rajapinnasta
   (`/api/trpc/journey.searchJourney`). VR.fi on Next.js-sovellus AWS WAF -botisuojauksella,
@@ -20,6 +22,12 @@ hintahistorian tarkasteluun.
   sivulataukseen. Lisäksi turhat pyynnöt (prefetchit, analytiikka) estetään.
 - Jokainen ajo päivittää taulun `prices` (tuorein hinta per lähtö) ja lisää rivin tauluun
   `price_history` (aikasarja → näkee miten hinta muuttuu lähtöpäivän lähestyessä).
+- **Keräyksen jatkaminen:** jos ajo katkeaa, seuraava ajo ohittaa reitti+lähtöpäivät,
+  jotka on jo haettu alle `freshnessHours` tuntia sitten (oletus 5 h) — se jatkaa siitä
+  mihin jäi sen sijaan että aloittaisi alusta. `0` = hae aina kaikki.
+- **Käyttöliittymä** toimii kahdessa moodissa: elävää API-backendia (`npm run serve`) vasten,
+  tai täysin staattisena GitHub Pages -julkaisuna (`npm run export`), jolloin `app.js` lukee
+  esirenderöityjä JSON-tiedostoja eikä serveriä tarvita lainkaan.
 
 ## Tietokanta
 
@@ -40,7 +48,7 @@ npm install            # asentaa riippuvuudet + lataa Chromiumin (Playwright)
 ## Käyttö
 
 ```powershell
-# 1) Siemennä reitit config.json:sta (täyttää asemanimet Digitrafficista)
+# 1) Alusta reitit config.json:sta (täyttää asemanimet Digitrafficista)
 npm run seed
 
 # 2) Aja hintojen keräys (kestää: ~reitit × 60 päivää, rate-limitattu)
@@ -85,6 +93,23 @@ Vaihtoehtoisesti tee pieni `scrape.cmd` (`cd /d <proj> && npm run scrape`) ja aj
 Jos haluat järjestelmän pyörimään verkossa ilman omaa konetta, katso **[DEPLOY.md](DEPLOY.md)**
 — Docker-pohjainen ohje pienelle Linux-VPS:lle (web-UI jatkuvasti päällä + päivittäinen
 keräys cronilla, Chromium valmiina kontissa).
+
+## Julkaisu GitHub Pagesiin (staattinen sivu)
+
+Käyttöliittymän voi julkaista ilmaiseksi GitHub Pagesiin ilman elävää backendia: kannan
+sisältö esirenderöidään staattisiksi JSON-tiedostoiksi, ja sivu lukee niitä. Scrape/parsinta
+tapahtuu siellä missä ajat sen — ei julkisella palvelimella.
+
+```powershell
+npm run scrape      # (valinnainen) kerää tuoreet hinnat
+npm run export      # kirjoittaa docs/-kansioon: manifest.json + per-reitti JSON + frontend
+npm run deploy      # julkaisee docs/:n gh-pages-haaraan (force push → ei historian kertymää)
+```
+
+`app.js` tunnistaa staattisen datan (`data/manifest.json`) ja siirtyy automaattisesti
+staattiseen moodiin. Pages tarjoilee sivun osoitteesta
+`https://<käyttäjä>.github.io/vr-hintahistoria/`. Päivitä julkaisu ajamalla `export` + `deploy`
+uudelleen keräyksen jälkeen.
 
 ## Huomioita
 

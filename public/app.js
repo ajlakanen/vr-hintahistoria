@@ -225,10 +225,6 @@ async function loadCalendar() {
   const mins = data.map((d) => d.minPrice);
   const avgs = data.map((d) => d.avgPrice);
 
-  // Viikonlopun pisteet erottuvalla värillä (oranssi), arkipäivät vihreällä.
-  const pointColors = labels.map((d) => (isWeekend(d) ? "#e4572e" : "#00a149"));
-  const pointRadii = labels.map((d) => (isWeekend(d) ? 3.5 : 2.5));
-
   if (calendarChart) calendarChart.destroy();
   calendarChart = new Chart($("calendarChart"), {
     type: "line",
@@ -241,9 +237,9 @@ async function loadCalendar() {
           borderColor: "#00a149",
           fill: false,
           tension: 0.2,
-          pointBackgroundColor: pointColors,
-          pointBorderColor: pointColors,
-          pointRadius: pointRadii,
+          pointBackgroundColor: "#00a149",
+          pointBorderColor: "#00a149",
+          pointRadius: 2.5,
           pointHoverRadius: 6,
         },
         { label: "Keskihinta (€)", data: avgs, borderColor: "#888", borderDash: [5, 4], tension: 0.2, fill: false, pointRadius: 0 },

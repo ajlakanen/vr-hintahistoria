@@ -144,6 +144,12 @@ const noData = {
   },
 };
 
+/** Lukee CSS-muuttujan (esim. "--c-accent") arvon :root-elementistä. Pitää kaavioiden
+ * värit samassa lähteessä style.css:n kanssa — ei kovakoodattuja värejä JS:ssä. */
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 async function json(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
@@ -316,6 +322,9 @@ async function loadCalendar() {
   const mins = data.map((d) => d.minPrice);
   const avgs = data.map((d) => d.avgPrice);
 
+  const cMin = cssVar("--c-chart-min");
+  const cAvg = cssVar("--c-chart-avg");
+
   if (calendarChart) calendarChart.destroy();
   calendarChart = new Chart($("calendarChart"), {
     type: "line",
@@ -325,16 +334,16 @@ async function loadCalendar() {
         {
           label: "Halvin (€)",
           data: mins,
-          borderColor: "#00a149",
+          borderColor: cMin,
           fill: false,
           tension: 0.2,
-          pointBackgroundColor: "#00a149",
-          pointBorderColor: "#00a149",
+          pointBackgroundColor: cMin,
+          pointBorderColor: cMin,
           pointRadius: 2.5,
           pointHoverRadius: 6,
           pointHitRadius: 14, // osuma lähelle riittää (helpottaa napautusta sormella)
         },
-        { label: "Keskihinta (€)", data: avgs, borderColor: "#888", borderDash: [5, 4], tension: 0.2, fill: false, pointRadius: 0 },
+        { label: "Keskihinta (€)", data: avgs, borderColor: cAvg, borderDash: [5, 4], tension: 0.2, fill: false, pointRadius: 0 },
       ],
     },
     options: {
@@ -449,7 +458,14 @@ async function loadDepartures(travelDate) {
   tbody.innerHTML = "";
   for (const r of rows) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${r.time}</td><td>${r.train || ""}</td><td>${r.price.toFixed(2)} ${r.currency}</td>`;
+    // available voi puuttua vanhasta staattisesta datasta -> tulkitaan varattavaksi.
+    const soldOut = r.available === 0;
+    if (soldOut) tr.classList.add("sold-out");
+    const priceCell = soldOut
+      ? `${r.price.toFixed(2)} ${r.currency} <span class="sold-out-tag">ei varattavissa</span>`
+      : `${r.price.toFixed(2)} ${r.currency}`;
+    tr.title = soldOut ? "Lähtöä ei voi enää varata — hinta on viimeksi tiedetty hinta." : "";
+    tr.innerHTML = `<td>${r.time}</td><td>${r.train || ""}</td><td>${priceCell}</td>`;
     tr.onclick = () => {
       tbody.querySelectorAll("tr").forEach((x) => x.classList.remove("active"));
       tr.classList.add("active");
@@ -471,6 +487,13 @@ async function loadHistory(travelDate, time) {
       `/api/history?route_id=${currentRouteId}&travel_date=${travelDate}&departure_time=${encodeURIComponent(time)}`
     );
   }
+  // Loppuunmyydyt keräyspäivät (available=0) punaisella: hinta on/oli olemassa, mutta
+  // lähtöä ei voinut enää varata. available voi puuttua vanhasta datasta -> varattava.
+  const SOLD = cssVar("--c-danger"), BOOKABLE = cssVar("--c-chart-hist");
+  const isSold = (r) => r.available === 0;
+  const pointColors = rows.map((r) => (isSold(r) ? SOLD : BOOKABLE));
+  const pointSizes = rows.map((r) => (isSold(r) ? 5 : 3));
+
   if (historyChart) historyChart.destroy();
   historyChart = new Chart($("historyChart"), {
     type: "line",
@@ -480,17 +503,29 @@ async function loadHistory(travelDate, time) {
         {
           label: "Hinta keräyspäivänä (€)",
           data: rows.map((r) => r.price),
-          borderColor: "#0b6bcb",
+          borderColor: BOOKABLE,
           tension: 0.2,
           fill: false,
-          pointRadius: 3,
+          pointRadius: pointSizes,
+          pointHoverRadius: pointSizes.map((s) => s + 2),
+          pointBackgroundColor: pointColors,
+          pointBorderColor: pointColors,
+          // Väritä punaiseksi se viivan pätkä, joka päättyy loppuunmyytyyn pisteeseen.
+          segment: { borderColor: (ctx) => (isSold(rows[ctx.p1DataIndex]) ? SOLD : BOOKABLE) },
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false, // korkeus tulee .chart-box-laatikosta
-      plugins: { legend: { position: "bottom" } },
+      plugins: {
+        legend: { position: "bottom" },
+        tooltip: {
+          callbacks: {
+            afterLabel: (item) => (isSold(rows[item.dataIndex]) ? "Ei enää varattavissa" : ""),
+          },
+        },
+      },
       scales: {
         x: { title: { display: true, text: "keräyspäivä" }, ticks: { autoSkip: true, maxTicksLimit: 8 } },
         y: { title: { display: true, text: "€" } },

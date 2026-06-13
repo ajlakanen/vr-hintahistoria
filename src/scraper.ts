@@ -283,6 +283,11 @@ function parseOption(o: unknown): JourneyPrice | null {
 
   const firstLeg = Array.isArray(opt.legs) && opt.legs.length > 0 ? opt.legs[0] : null;
 
+  // HUOM: availability.seatAvailability="NOT_BOOKABLE" tarkoittaa vain ettei lähtöön voi
+  // tehdä PAIKANVARAUSTA (esim. lähijunat, trainType "LOL") — lipun voi silti ostaa. Se ei
+  // siis ole loppuunmyynti. Ainoa "ei voi enää ostaa" -signaali on, että lähtö katoaa
+  // hakutuloksista kokonaan (ks. markDeparturesSoldOut). Tuloksissa hinnalla näkyvä lähtö
+  // on siis aina ostettavissa.
   return {
     travelDate: departureAt.slice(0, 10),
     departureTime: departureAt.slice(11, 16),

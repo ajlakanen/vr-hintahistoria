@@ -33,6 +33,8 @@ function initSchema(d: DatabaseSync): void {
     );
 
     -- Nykyinen (tuorein) hinta per lähtö. Päivitetään paikallaan.
+    -- available: 1 = varattavissa, 0 = loppuunmyyty / ei enää varattavissa (hinta on
+    -- viimeksi tiedetty hinta). Lähiajan lähtö voi myydä loppuun seurannan aikana.
     CREATE TABLE IF NOT EXISTS prices (
       route_id       INTEGER NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
       travel_date    TEXT NOT NULL,
@@ -41,11 +43,13 @@ function initSchema(d: DatabaseSync): void {
       train_type     TEXT,
       price          REAL NOT NULL,
       currency       TEXT NOT NULL DEFAULT 'EUR',
+      available      INTEGER NOT NULL DEFAULT 1,
       updated_at     TEXT NOT NULL,
       PRIMARY KEY (route_id, travel_date, departure_time, train_number)
     );
 
     -- Aikasarja: jokainen ajo lisää rivin -> nähdään miten lähdön hinta kehittyy.
+    -- available kertoo oliko lähtö varattavissa kyseisenä keräyspäivänä.
     CREATE TABLE IF NOT EXISTS price_history (
       id             INTEGER PRIMARY KEY AUTOINCREMENT,
       route_id       INTEGER NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
@@ -54,6 +58,7 @@ function initSchema(d: DatabaseSync): void {
       train_number   TEXT,
       price          REAL NOT NULL,
       currency       TEXT NOT NULL DEFAULT 'EUR',
+      available      INTEGER NOT NULL DEFAULT 1,
       scrape_date    TEXT NOT NULL,
       scraped_at     TEXT NOT NULL,
       UNIQUE (route_id, travel_date, departure_time, train_number, scrape_date)
@@ -64,6 +69,17 @@ function initSchema(d: DatabaseSync): void {
     CREATE INDEX IF NOT EXISTS idx_history_scrape
       ON price_history (route_id, scrape_date);
   `);
+
+  // Migraatio vanhoille kannoille: lisää 'available'-sarake jos se puuttuu.
+  addColumnIfMissing(d, "prices", "available", "INTEGER NOT NULL DEFAULT 1");
+  addColumnIfMissing(d, "price_history", "available", "INTEGER NOT NULL DEFAULT 1");
+}
+
+/** Lisää sarakkeen tauluun jos sitä ei vielä ole (idempotentti migraatio). */
+function addColumnIfMissing(d: DatabaseSync, table: string, column: string, def: string): void {
+  const cols = d.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (cols.some((c) => c.name === column)) return;
+  d.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
 }
 
 export function upsertRoute(
@@ -124,15 +140,21 @@ export function recordPrice(routeId: number, p: JourneyPrice, scrapeDate: string
   const now = new Date().toISOString();
   // train_number on osa avainta -> ei NULL (NULLit ovat SQLitessä keskenään erillisiä).
   const trainNumber = p.trainNumber ?? "";
+  // Tuloksissa hinnalla näkyvä lähtö on ostettavissa -> available=1 (myös NOT_BOOKABLE-
+  // lähijunat: niihin ei voi varata paikkaa, mutta lipun voi ostaa). Loppuunmyynti (=ei voi
+  // enää ostaa) tunnistetaan vain katoamisesta, ei tästä. Jos lähtö oli aiemmin merkitty
+  // loppuunmyydyksi ja palaa tuloksiin, available palautuu takaisin 1:ksi.
+  const available = 1;
 
   d.prepare(
     `INSERT INTO prices
-       (route_id, travel_date, departure_time, train_number, train_type, price, currency, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       (route_id, travel_date, departure_time, train_number, train_type, price, currency, available, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (route_id, travel_date, departure_time, train_number)
      DO UPDATE SET train_type   = excluded.train_type,
                    price        = excluded.price,
                    currency     = excluded.currency,
+                   available    = excluded.available,
                    updated_at   = excluded.updated_at`
   ).run(
     routeId,
@@ -142,14 +164,15 @@ export function recordPrice(routeId: number, p: JourneyPrice, scrapeDate: string
     p.trainType,
     p.price,
     p.currency,
+    available,
     now
   );
 
   const res = d
     .prepare(
       `INSERT OR IGNORE INTO price_history
-         (route_id, travel_date, departure_time, train_number, price, currency, scrape_date, scraped_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         (route_id, travel_date, departure_time, train_number, price, currency, available, scrape_date, scraped_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       routeId,
@@ -158,8 +181,70 @@ export function recordPrice(routeId: number, p: JourneyPrice, scrapeDate: string
       p.trainNumber,
       p.price,
       p.currency,
+      available,
       scrapeDate,
       now
     );
   return res.changes > 0;
+}
+
+/**
+ * Merkitsee loppuunmyydyiksi ne reitin lähtöpäivän lähdöt, jotka olivat aiemmin
+ * varattavissa (available=1) mutta jotka EIVÄT enää löydy tuoreesta hakutuloksesta
+ * (presentKeys). Säilyttää viimeksi tiedetyn hinnan, mutta asettaa available=0 ja
+ * kirjaa yhden "ei varattavissa" -pisteen booking-käyrään (price_history) tälle
+ * keräyspäivälle. Palauttaa loppuunmyydyiksi merkittyjen lähtöjen määrän.
+ *
+ * presentKeys: joukko avaimia muotoa `${departure_time} ${train_number}`, missä
+ * train_number on tyhjä merkkijono jos sitä ei ole (sama normalisointi kuin prices-taulussa).
+ */
+export function markDeparturesSoldOut(
+  routeId: number,
+  travelDate: string,
+  presentKeys: Set<string>,
+  scrapeDate: string
+): number {
+  const d = getDb();
+  const now = new Date().toISOString();
+  const existing = d
+    .prepare(
+      `SELECT departure_time, train_number, price, currency
+       FROM prices
+       WHERE route_id = ? AND travel_date = ? AND available = 1`
+    )
+    .all(routeId, travelDate) as {
+    departure_time: string;
+    train_number: string | null;
+    price: number;
+    currency: string;
+  }[];
+
+  const markPrice = d.prepare(
+    `UPDATE prices SET available = 0, updated_at = ?
+     WHERE route_id = ? AND travel_date = ? AND departure_time = ? AND train_number = ?`
+  );
+  const markHistory = d.prepare(
+    `INSERT OR IGNORE INTO price_history
+       (route_id, travel_date, departure_time, train_number, price, currency, available, scrape_date, scraped_at)
+     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`
+  );
+
+  let count = 0;
+  for (const row of existing) {
+    const trainNumber = row.train_number ?? "";
+    if (presentKeys.has(`${row.departure_time} ${trainNumber}`)) continue;
+    markPrice.run(now, routeId, travelDate, row.departure_time, trainNumber);
+    markHistory.run(
+      routeId,
+      travelDate,
+      row.departure_time,
+      trainNumber,
+      row.price,
+      row.currency,
+      scrapeDate,
+      now
+    );
+    count++;
+  }
+  return count;
 }

@@ -22,6 +22,7 @@ interface DepRow {
   train: string | null;
   price: number;
   currency: string;
+  available: number;
   updatedAt: string;
 }
 interface HistRow {
@@ -30,6 +31,7 @@ interface HistRow {
   scrapeDate: string;
   price: number;
   currency: string;
+  available: number;
 }
 
 function main(): void {
@@ -57,17 +59,18 @@ function main(): void {
   writeFileSync(indexPath, html);
 
   const calStmt = db.prepare(
+    // Vain varattavissa olevat lähdöt -> "halvin/keskihinta" ei näytä loppuunmyydyn vanhaa hintaa.
     `SELECT travel_date AS date, MIN(price) AS minPrice, AVG(price) AS avgPrice,
             MAX(price) AS maxPrice, COUNT(*) AS departures
-     FROM prices WHERE route_id = ? GROUP BY travel_date ORDER BY travel_date`
+     FROM prices WHERE route_id = ? AND available = 1 GROUP BY travel_date ORDER BY travel_date`
   );
   const depStmt = db.prepare(
     `SELECT travel_date, departure_time AS time, train_number AS train, price, currency,
-            updated_at AS updatedAt
+            available, updated_at AS updatedAt
      FROM prices WHERE route_id = ? ORDER BY travel_date, departure_time`
   );
   const histStmt = db.prepare(
-    `SELECT travel_date, departure_time, scrape_date AS scrapeDate, price, currency
+    `SELECT travel_date, departure_time, scrape_date AS scrapeDate, price, currency, available
      FROM price_history WHERE route_id = ? ORDER BY travel_date, departure_time, scrape_date`
   );
 
@@ -82,14 +85,23 @@ function main(): void {
         train: d.train,
         price: d.price,
         currency: d.currency,
+        available: d.available,
         updatedAt: d.updatedAt,
       });
     }
 
-    const history: Record<string, { scrapeDate: string; price: number; currency: string }[]> = {};
+    const history: Record<
+      string,
+      { scrapeDate: string; price: number; currency: string; available: number }[]
+    > = {};
     for (const h of histStmt.all(r.id) as unknown as HistRow[]) {
       const key = `${h.travel_date}|${h.departure_time}`;
-      (history[key] ??= []).push({ scrapeDate: h.scrapeDate, price: h.price, currency: h.currency });
+      (history[key] ??= []).push({
+        scrapeDate: h.scrapeDate,
+        price: h.price,
+        currency: h.currency,
+        available: h.available,
+      });
     }
 
     const blob = {

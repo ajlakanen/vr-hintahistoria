@@ -1,115 +1,297 @@
+/* ============================================================================
+   Design-tokenit. Muuta värejä, kokoja ja välejä yhdestä paikasta — älä
+   kovakoodaa arvoja sääntöihin, vaan viittaa var(--token):iin.
+   ============================================================================ */
 :root {
-  --green: #00a149;
-  --bg: #f5f6f7;
-  --card: #ffffff;
-  --text: #1a1a1a;
-  --muted: #6b7280;
-  --border: #e3e6e8;
+  /* --- Värit: brändi & pinnat --- */
+  --c-accent: #00a149;          /* VR-vihreä: otsikot, napit, halvin-käyrä */
+  --c-accent-soft: #f0fbf4;     /* accentin vaalea tausta: hover, huomiolaatikko */
+  --c-accent-active: #e0f5e9;   /* valitun taulukkorivin tausta */
+  --c-danger: #d11507;          /* loppuunmyyty / ei varattavissa */
+  --c-danger-soft: #fdeceb;     /* ei-varattavan rivin hover-tausta */
+  --c-danger-active: #fbdddb;   /* ei-varattavan rivin valinta */
+  --c-warn: #e4572e;            /* virheellinen syöte (päivämääräkenttä) */
+
+  --c-bg: #f5f6f7;              /* sivun tausta */
+  --c-surface: #ffffff;        /* kortit, paneelit, napit */
+  --c-text: #1a1a1a;
+  --c-text-on-accent: #ffffff; /* teksti värillisen taustan päällä */
+  --c-muted: #6b7280;
+  --c-border: #e3e6e8;
+
+  /* --- Tekstikoot --- */
+  --fs-xs: 0.72rem;            /* pienet merkit (esim. "ei varattavissa") */
+  --fs-sm: 0.85rem;           /* lomakkeen labelit, alatunniste */
+  --fs-base: 0.9rem;          /* leipäteksti, taulukko */
+  --fs-md: 0.95rem;           /* napit */
+  --fs-lg: 1.1rem;            /* paneelien otsikot (h2) */
+  --fs-control: 1rem;         /* kalenterinappi, päivämääräkenttä */
+  /* EI alle 16px: estää iOS Safaria zoomaamasta kenttään napautettaessa. */
+  --fs-input: 16px;
+
+  /* --- Välit (4px-pohjainen asteikko) --- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* --- Pyöristykset --- */
+  --radius-sm: 8px;           /* kentät, napit */
+  --radius-md: 12px;          /* kortit, paneelit */
+  --radius-pill: 999px;       /* tunnistemerkki (tag) */
+
+  /* --- Mitat --- */
+  --page-max: 1100px;
+  --chart-h: 340px;
+  --chart-h-hist: 260px;
+
+  /* Korostus-/varjostusarvot kaavioiden JS-piirtoon (luetaan myös app.js:stä). */
+  --c-chart-min: var(--c-accent);
+  --c-chart-avg: #888888;
+  --c-chart-hist: #0b6bcb;
 }
 
+/* HUOM: media query -rajaa (760px) ei voi ilmaista var():lla, koska CSS-muuttujat
+   eivät toimi @media-ehdoissa. Sama raja on app.js:n NARROW-vakiossa — pidä ne synkassa. */
+
+/* ============================================================================
+   Perusta
+   ============================================================================ */
 * { box-sizing: border-box; }
 
 body {
-  margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  padding: 1.5rem;
-  max-width: 1100px;
   margin-inline: auto;
+  margin-block: 0;
+  max-width: var(--page-max);
+  padding: var(--space-6);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--c-bg);
+  color: var(--c-text);
 }
 
-header h1 { margin: 0 0 0.25rem; color: var(--green); }
-.muted { color: var(--muted); font-size: 0.9rem; margin: 0.25rem 0; }
+a { color: var(--c-chart-hist); }
+
+/* ============================================================================
+   Otsikko, huomiolaatikko, alatunniste
+   ============================================================================ */
+header h1 {
+  margin: 0 0 var(--space-1);
+  color: var(--c-accent);
+}
+
+.muted {
+  margin: var(--space-1) 0;
+  color: var(--c-muted);
+  font-size: var(--fs-base);
+}
+
+.note {
+  padding: var(--space-2) var(--space-3);
+  background: var(--c-accent-soft);
+  border: 1px solid var(--c-border);
+  border-left: 3px solid var(--c-accent);
+  border-radius: var(--radius-sm);
+}
 
 .site-footer {
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
+  margin-top: var(--space-8);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--c-border);
   line-height: 1.5;
-}
-.site-footer p { margin: 0.4rem 0; }
-.footer-stats { font-size: 0.85rem; }
-.note {
-  background: #f0fbf4;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--green);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-  
+
+  & p { margin: var(--space-2) 0; }
 }
 
+.footer-stats { font-size: var(--fs-sm); }
+
+/* ============================================================================
+   Ohjaimet (lomake)
+   ============================================================================ */
 .controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: var(--space-4);
   align-items: flex-end;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1rem;
-  margin: 1rem 0;
+  margin: var(--space-4) 0;
+  padding: var(--space-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+
+  & label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-size: var(--fs-sm);
+  }
+
+  & select,
+  & input {
+    padding: var(--space-2);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-input);
+  }
 }
-.controls label { display: flex; flex-direction: column; font-size: 0.85rem; gap: 0.25rem; }
-.controls select, .controls input {
-  padding: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  /* Vähintään 16px: estää iOS Safaria zoomaamasta (ja sallimasta vaakavieritystä)
-     kun tekstikenttään napautetaan. */
-  font-size: 16px;
-}
+
 button {
-  background: var(--green);
-  color: #fff;
-  border: 0;
-  border-radius: 8px;
   padding: 0.6rem 1.2rem;
-  font-size: 0.95rem;
+  background: var(--c-accent);
+  color: var(--c-text-on-accent);
+  border: 0;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-md);
   cursor: pointer;
+
+  &:hover { filter: brightness(0.95); }
 }
-button:hover { filter: brightness(0.95); }
 
 /* Suomalaismuotoinen päivämääräkenttä (pp.kk.vvvv) + kalenteripainike.
    Natiivi <input type=date> on piilossa hoitamassa kalenterivalitsinta. */
-.datefield { display: flex; align-items: stretch; position: relative; }
-.date-text { flex: 1 1 7rem; border-radius: 8px 0 0 8px !important; border-right: 0 !important; }
-.date-text.invalid { border-color: #e4572e !important; }
-.cal-btn { border-radius: 0 8px 8px 0; padding: 0 0.55rem; font-size: 1rem; line-height: 1; }
-.date-native { position: absolute; bottom: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-
-.panel {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1.25rem;
+.datefield {
+  display: flex;
+  position: relative;
+  align-items: stretch;
 }
-.panel h2 { margin: 0 0 0.25rem; font-size: 1.1rem; }
 
-/* Käyrälaatikko antaa kaaviolle kiinteän korkeuden (maintainAspectRatio: false),
-   jotta se ei litisty matalaksi kapealla näytöllä. */
-.chart-box { position: relative; height: 340px; }
-.chart-box--hist { height: 260px; }
-#calendarChart { cursor: pointer; }
+.date-text {
+  flex: 1 1 7rem;
+  /* Liitetään kalenterinappiin: pyöristys vain vasemmalle, ei oikeaa reunaa. */
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm) !important;
+  border-right: 0 !important;
+
+  &.invalid { border-color: var(--c-warn) !important; }
+}
+
+.cal-btn {
+  padding: 0 0.55rem;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: var(--fs-control);
+  line-height: 1;
+}
+
+.date-native {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ============================================================================
+   Paneelit & asettelu
+   ============================================================================ */
+.panel {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+
+  & h2 {
+    margin: 0 0 var(--space-1);
+    font-size: var(--fs-lg);
+  }
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+}
+
+/* ============================================================================
+   Kaaviot
+   ============================================================================ */
+/* Käyrälaatikko antaa kaaviolle kiinteän korkeuden (Chart.js maintainAspectRatio:
+   false), jottei se litisty matalaksi kapealla näytöllä. */
+.chart-box {
+  position: relative;
+  height: var(--chart-h);
+}
+.chart-box--hist { height: var(--chart-h-hist); }
+
 /* Pystyvieritys toimii sormella käyrän päältäkin; napautus valitsee päivän. */
-#calendarChart { touch-action: pan-y; }
-
-@media (max-width: 760px) {
-  .chart-box { height: 300px; }
-  .chart-box--hist { height: 280px; }
+#calendarChart {
+  cursor: pointer;
+  touch-action: pan-y;
 }
 
 /* Aikaikkunan selaus käyrän alla (edelliset / seuraavat). */
-.range-nav { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 0.6rem; }
-.range-btn { background: var(--card); color: var(--text); border: 1px solid var(--border); flex: 1; }
-.range-btn:hover { background: #f0fbf4; filter: none; }
+.range-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: 0.6rem;
+}
 
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-@media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
+.range-btn {
+  flex: 1;
+  background: var(--c-surface);
+  color: var(--c-text);
+  border: 1px solid var(--c-border);
 
-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-th, td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border); }
-tbody tr { cursor: pointer; }
-tbody tr:hover { background: #f0fbf4; }
-tbody tr.active { background: #e0f5e9; }
+  &:hover {
+    background: var(--c-accent-soft);
+    filter: none;
+  }
+}
+
+/* ============================================================================
+   Taulukko (lähdöt)
+   ============================================================================ */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-base);
+}
+
+th,
+td {
+  padding: var(--space-2) var(--space-2);
+  text-align: left;
+  border-bottom: 1px solid var(--c-border);
+}
+
+tbody tr {
+  cursor: pointer;
+
+  &:hover { background: var(--c-accent-soft); }
+  &.active { background: var(--c-accent-active); }
+
+  /* Ei varattavissa: hinta on/oli olemassa, mutta vuoroa ei voi enää varata. */
+  &.sold-out {
+    color: var(--c-danger);
+
+    &:hover { background: var(--c-danger-soft); }
+    &.active { background: var(--c-danger-active); }
+  }
+}
+
+.sold-out-tag {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0.05rem 0.4rem;
+  vertical-align: middle;
+  color: var(--c-text-on-accent);
+  background: var(--c-danger);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* ============================================================================
+   Kapea näyttö (mobiili). 760px = app.js:n NARROW-vakio — pidä synkassa.
+   ============================================================================ */
+@media (max-width: 760px) {
+  .two-col { grid-template-columns: 1fr; }
+  .chart-box { height: 300px; }
+  .chart-box--hist { height: 280px; }
+}

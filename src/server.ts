@@ -36,13 +36,15 @@ function apiRoutes() {
 function apiCalendar(routeId: number, start: string, end: string) {
   return getDb()
     .prepare(
+      // Vain varattavissa olevat lähdöt (available=1) -> "halvin/keskihinta" pysyy totena
+      // eikä näytä loppuunmyydyn lähdön vanhaa (ei enää ostettavissa olevaa) hintaa.
       `SELECT travel_date AS date,
               MIN(price)  AS minPrice,
               AVG(price)  AS avgPrice,
               MAX(price)  AS maxPrice,
               COUNT(*)    AS departures
        FROM prices
-       WHERE route_id = ? AND travel_date BETWEEN ? AND ?
+       WHERE route_id = ? AND travel_date BETWEEN ? AND ? AND available = 1
        GROUP BY travel_date
        ORDER BY travel_date`
     )
@@ -53,7 +55,8 @@ function apiCalendar(routeId: number, start: string, end: string) {
 function apiDepartures(routeId: number, travelDate: string) {
   return getDb()
     .prepare(
-      `SELECT departure_time AS time, train_number AS train, price, currency, updated_at AS updatedAt
+      `SELECT departure_time AS time, train_number AS train, price, currency,
+              available, updated_at AS updatedAt
        FROM prices
        WHERE route_id = ? AND travel_date = ?
        ORDER BY departure_time`
@@ -65,7 +68,7 @@ function apiDepartures(routeId: number, travelDate: string) {
 function apiHistory(routeId: number, travelDate: string, departureTime: string) {
   return getDb()
     .prepare(
-      `SELECT scrape_date AS scrapeDate, price, currency
+      `SELECT scrape_date AS scrapeDate, price, currency, available
        FROM price_history
        WHERE route_id = ? AND travel_date = ? AND departure_time = ?
        ORDER BY scrape_date`

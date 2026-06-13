@@ -1,5 +1,5 @@
 import { loadConfig } from "./config.ts";
-import { getActiveRoutes, recordPrice, lastScrapedAt } from "./db.ts";
+import { getActiveRoutes, recordPrice, lastScrapedAt, markDeparturesSoldOut } from "./db.ts";
 import { VrScraper } from "./scraper.ts";
 import { RateLimiter, sleep } from "./rateLimiter.ts";
 import { log } from "./logger.ts";
@@ -71,6 +71,15 @@ async function main(): Promise<void> {
             );
             for (const j of journeys) {
               if (recordPrice(route.id, j, scrapeDate)) rowsWritten++;
+            }
+            // Loppuunmyynnin tunnistus: lähdöt, jotka olivat aiemmin varattavissa mutta
+            // joita ei enää löydy tuloksista, merkitään ei-varattaviksi (viimeksi tiedetty
+            // hinta säilyy). Tehdään vain kun tuloksia tuli — tyhjä (mahd. ohimenevä) vastaus
+            // ei saa virheellisesti tyhjentää koko päivää.
+            if (journeys.length > 0) {
+              const present = new Set(journeys.map((j) => `${j.departureTime} ${j.trainNumber ?? ""}`));
+              const soldOut = markDeparturesSoldOut(route.id, date, present, scrapeDate);
+              if (soldOut > 0) log.info(`${tag}: ${soldOut} lähtöä merkitty loppuunmyydyksi.`);
             }
             log.info(`${tag}: ${journeys.length} lähtöä tallennettu.`);
             ok = true;

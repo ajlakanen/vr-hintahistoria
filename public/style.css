@@ -110,19 +110,37 @@
 }
 
 /* Pehmeä ristihäivytys teemaa vaihdettaessa. app.js lisää .theme-transition-luokan
-   juureen vain vaihdon ajaksi, joten värilliset ominaisuudet häivystyvät tasaisesti
-   muttei hover/focus tms. ala animoitua. Kaaviot (canvas) päivittyvät Chart.js:n omalla
-   update()-animaatiolla. */
+   juureen vain vaihdon ajaksi (ettei hover/focus tms. ala animoitua). Kaaviot (canvas)
+   päivittyvät Chart.js:n omalla update()-animaatiolla.
+
+   Tausta ja reunat häivystetään KAIKILLA (eivät periydy -> jokainen siirtyy puhtaasti
+   omasta arvostaan). Tekstiväri (color) PERIYTYY: jos jokainen välielementti myös
+   transitoisi coloria, ne "jahtaisivat" vanhemman jo animoituvaa arvoa ja teksti näyttäisi
+   välähtävän taustaa jäljessä. Siksi coloria häivytetään vain bodylla ja elementeillä joilla
+   on OMA väri; periytyvä teksti seuraa bodyn häivytystä suoraan ilman omaa transitiota. */
 :root.theme-transition,
 :root.theme-transition * {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+:root.theme-transition body,
+:root.theme-transition h1,
+:root.theme-transition .muted,
+:root.theme-transition a,
+:root.theme-transition button,
+:root.theme-transition .range-btn,
+:root.theme-transition .theme-toggle,
+:root.theme-transition .buy-link,
+:root.theme-transition .cheapest-tag,
+:root.theme-transition .sold-out-tag,
+:root.theme-transition tr.sold-out {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
-/* Kunnioita liike-eston asetusta: ei häivytystä jos käyttäjä on pyytänyt vähemmän liikettä. */
+/* Kunnioita liike-eston asetusta. !important kumoaa myös yllä olevat tarkemmat valitsimet. */
 @media (prefers-reduced-motion: reduce) {
   :root.theme-transition,
   :root.theme-transition * {
-    transition: none;
+    transition: none !important;
   }
 }
 

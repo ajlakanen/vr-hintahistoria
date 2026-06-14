@@ -109,6 +109,23 @@
   --c-chart-marker: rgba(255, 255, 255, 0.3);
 }
 
+/* Pehmeä ristihäivytys teemaa vaihdettaessa. app.js lisää .theme-transition-luokan
+   juureen vain vaihdon ajaksi, joten värilliset ominaisuudet häivystyvät tasaisesti
+   muttei hover/focus tms. ala animoitua. Kaaviot (canvas) päivittyvät Chart.js:n omalla
+   update()-animaatiolla. */
+:root.theme-transition,
+:root.theme-transition * {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Kunnioita liike-eston asetusta: ei häivytystä jos käyttäjä on pyytänyt vähemmän liikettä. */
+@media (prefers-reduced-motion: reduce) {
+  :root.theme-transition,
+  :root.theme-transition * {
+    transition: none;
+  }
+}
+
 /* HUOM: media query -rajaa (760px) ei voi ilmaista var():lla, koska CSS-muuttujat
    eivät toimi @media-ehdoissa. Sama raja on app.js:n NARROW-vakiossa — pidä ne synkassa. */
 

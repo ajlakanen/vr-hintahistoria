@@ -2,7 +2,8 @@ const $ = (id) => document.getElementById(id);
 let calendarChart, historyChart;
 let currentRouteId = null;
 let selectedDate = null; // kalenterista valittu lähtöpäivä (pystyviivaa varten)
-let lastHistory = null;  // { travelDate, time } viimeksi avatusta hintakäyrästä (teeman vaihtoa varten)
+let lastHistoryRows = null; // viimeksi piirretyn hintakäyrän rivit (teeman väripäivitystä varten)
+let themeTransitionTimer; // ajastin, joka poistaa .theme-transition-luokan häivytyksen jälkeen
 const NARROW = 760; // leveysraja (sama kuin CSS-media query)
 let narrowMode = window.innerWidth < NARROW;
 
@@ -408,7 +409,7 @@ function showDepHint(msg) {
 
 /** Palauttaa hintakäyrän alkutilaan (näyttää taas kehotteen). */
 function clearHistory() {
-  lastHistory = null;
+  lastHistoryRows = null;
   $("histTitle").textContent = "Hintakehitys (booking-käyrä)";
   $("histHint").hidden = false;
   if (historyChart) { historyChart.destroy(); historyChart = null; }
@@ -506,7 +507,6 @@ async function loadDepartures(travelDate) {
 }
 
 async function loadHistory(travelDate, time) {
-  lastHistory = { travelDate, time };
   $("histHint").hidden = true;
   $("histTitle").textContent = `Hintakehitys — ${fmtFiDate(travelDate)} klo ${time}`;
   let rows;
@@ -518,6 +518,7 @@ async function loadHistory(travelDate, time) {
       `/api/history?route_id=${currentRouteId}&travel_date=${travelDate}&departure_time=${encodeURIComponent(time)}`
     );
   }
+  lastHistoryRows = rows; // talteen, jotta teeman vaihto voi värittää käyrän paikallaan
   // Loppuunmyydyt keräyspäivät (available=0) punaisella: hinta on/oli olemassa, mutta
   // lähtöä ei voinut enää varata. available voi puuttua vanhasta datasta -> varattava.
   const SOLD = cssVar("--c-danger"), BOOKABLE = cssVar("--c-chart-hist");
@@ -635,34 +636,75 @@ function applyChartTheme() {
   Chart.defaults.borderColor = cssVar("--c-chart-grid");
 }
 
-/** Piirtää näkyvät kaaviot uudelleen uusilla väreillä ja palauttaa valitun päivän/lähdön. */
-async function rerenderCharts() {
-  if (!currentRouteId) return;
-  const day = selectedDate;
-  const hist = lastHistory;
-  await loadCalendar(); // nollaa valinnat -> palautetaan ne alla
-  if (day) await loadDepartures(day);
-  if (hist) {
-    await loadHistory(hist.travelDate, hist.time);
-    // Korosta uudelleen se lähtörivi, jonka käyrä on auki.
-    const tbody = $("departures").querySelector("tbody");
-    tbody.querySelectorAll("tr").forEach((tr) => {
-      tr.classList.toggle("active", tr.firstChild && tr.firstChild.textContent === hist.time);
-    });
-  }
+/** Päivittää kalenterikäyrän värit PAIKALLAAN (ei tuhoa/rakenna uudelleen -> ei välähdystä,
+ *  valinta säilyy). Pluginit (viikonloppu, pystyviiva, "ei tietoja") lukevat värit live joka
+ *  piirrossa, joten ne päivittyvät update()-kutsulla itsestään. */
+function recolorCalendar() {
+  if (!calendarChart) return;
+  const cMin = cssVar("--c-chart-min"), cAvg = cssVar("--c-chart-avg");
+  const [dMin, dAvg] = calendarChart.data.datasets;
+  if (dMin) { dMin.borderColor = cMin; dMin.pointBackgroundColor = cMin; dMin.pointBorderColor = cMin; }
+  if (dAvg) dAvg.borderColor = cAvg;
+  calendarChart.update();
 }
 
-/** Vaihtaa teemaa, tallentaa valinnan ja piirtää kaaviot uusilla väreillä. */
-async function toggleTheme() {
-  const next = isDark() ? "light" : "dark";
-  document.documentElement.setAttribute("data-theme", next);
-  try { localStorage.setItem("theme", next); } catch { /* esim. privaattitila -> ei tallenneta */ }
-  updateThemeButton();
+/** Päivittää hintakäyrän värit paikallaan viimeksi piirretyn käyrän rivien perusteella. */
+function recolorHistory() {
+  if (!historyChart || !lastHistoryRows) return;
+  const SOLD = cssVar("--c-danger"), BOOKABLE = cssVar("--c-chart-hist");
+  const rows = lastHistoryRows;
+  const isSold = (r) => r.available === 0;
+  const colors = rows.map((r) => (isSold(r) ? SOLD : BOOKABLE));
+  const ds = historyChart.data.datasets[0];
+  ds.borderColor = BOOKABLE;
+  ds.pointBackgroundColor = colors;
+  ds.pointBorderColor = colors;
+  ds.segment.borderColor = (ctx) => (isSold(rows[ctx.p1DataIndex]) ? SOLD : BOOKABLE);
+  historyChart.update();
+}
+
+/** Päivittää näkyvien kaavioiden värit teeman mukaan (akselit + datasarjat + pluginit). */
+function recolorCharts() {
   applyChartTheme();
-  await rerenderCharts();
+  recolorCalendar();
+  recolorHistory();
+}
+
+/**
+ * Ottaa teeman käyttöön: asettaa attribuutin, päivittää napin ja kaavioiden värit.
+ * animate=true lisää hetkeksi .theme-transition-luokan, jolloin värit ristihäivystyvät
+ * pehmeästi (rajattu vaihtohetkeen, ettei hover/focus tms. ala animoitua).
+ */
+function applyTheme(theme, animate) {
+  const root = document.documentElement;
+  if (animate) {
+    root.classList.add("theme-transition");
+    clearTimeout(themeTransitionTimer);
+    themeTransitionTimer = setTimeout(() => root.classList.remove("theme-transition"), 350);
+  }
+  root.setAttribute("data-theme", theme);
+  updateThemeButton();
+  recolorCharts();
+}
+
+/** Vaihtaa teemaa napista, tallentaa valinnan ja häivyttää vaihdoksen pehmeästi. */
+function toggleTheme() {
+  const next = isDark() ? "light" : "dark";
+  try { localStorage.setItem("theme", next); } catch { /* esim. privaattitila -> ei tallenneta */ }
+  applyTheme(next, true);
 }
 
 $("themeToggle").addEventListener("click", toggleTheme);
+
+// Jos käyttäjä ei ole valinnut teemaa itse (ei tallennettua valintaa), seuraa
+// käyttöjärjestelmän vaalea/tumma-tilaa myös sivun ollessa auki.
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+  let chosen = null;
+  try { chosen = localStorage.getItem("theme"); } catch { /* ei pääsyä -> kohdellaan valitsemattomana */ }
+  if (chosen) return;
+  applyTheme(e.matches ? "dark" : "light", true);
+});
+
 updateThemeButton();
 applyChartTheme(); // ennen ensimmäistä kaaviota, jotta akselivärit ovat heti oikein
 

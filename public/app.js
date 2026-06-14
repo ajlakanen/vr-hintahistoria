@@ -436,12 +436,24 @@ function renderFooter() {
   el.innerHTML = `<strong>Tilanne:</strong> ${parts.join(" · ")}.`;
 }
 
+/**
+ * Rakentaa linkin VR.fi:n hakutulossivulle annetulle reitille ja päivälle. VR EI tue
+ * suoraa linkitystä yksittäiseen lähtöön (jatkovaihe vaatii palvelimen luoman saleId:n,
+ * jota ei voi johtaa pvm/klo/junanumerosta) — paras mahdollinen on tämän päivän lähtölista,
+ * jossa käyttäjä valitsee oikean kellonajan yhdellä klikkauksella.
+ */
+function vrBuyUrl(fromCode, toCode, travelDate) {
+  const p = new URLSearchParams({ from: fromCode, to: toCode, outboundDate: travelDate });
+  p.append("passengers[0][type]", "ADULT");
+  return `https://www.vr.fi/kertalippu-menomatkan-hakutulokset?${p.toString()}`;
+}
+
 async function loadDepartures(travelDate) {
   selectedDate = travelDate;
   if (calendarChart) calendarChart.update("none"); // piirrä valitun päivän pystyviiva
-  const r = routesById.get(currentRouteId);
-  $("depTitle").textContent = r
-    ? `${r.fromName || r.from}–${r.toName || r.to} ${fmtFiDate(travelDate)}`
+  const route = routesById.get(currentRouteId);
+  $("depTitle").textContent = route
+    ? `${route.fromName || route.from}–${route.toName || route.to} ${fmtFiDate(travelDate)}`
     : `Lähdöt — ${fmtFiDate(travelDate)}`;
   let rows;
   if (STATIC) {
@@ -458,16 +470,32 @@ async function loadDepartures(travelDate) {
   $("departures").hidden = false;
   const tbody = $("departures").querySelector("tbody");
   tbody.innerHTML = "";
+  // Päivän halvin VARATTAVISSA oleva hinta (loppuunmyytyjä ei lasketa). Voi osua useaan
+  // lähtöön (tasapeli) -> kaikki sen hintaiset saavat merkin.
+  const bookablePrices = rows.filter((d) => d.available !== 0).map((d) => d.price);
+  const minPrice = bookablePrices.length ? Math.min(...bookablePrices) : null;
   for (const r of rows) {
     const tr = document.createElement("tr");
     // available voi puuttua vanhasta staattisesta datasta -> tulkitaan varattavaksi.
     const soldOut = r.available === 0;
     if (soldOut) tr.classList.add("sold-out");
+    const cheapest = !soldOut && minPrice !== null && r.price === minPrice;
+    const cheapestTag = cheapest
+      ? ' <span class="cheapest-tag">⭐ Päivän halvin!</span>'
+      : "";
     const priceCell = soldOut
       ? `${r.price.toFixed(2)} ${r.currency} <span class="sold-out-tag">ei varattavissa</span>`
-      : `${r.price.toFixed(2)} ${r.currency}`;
+      : `${r.price.toFixed(2)} ${r.currency}${cheapestTag}`;
     tr.title = soldOut ? "Lähtöä ei voi enää varata — hinta on viimeksi tiedetty hinta." : "";
-    tr.innerHTML = `<td>${r.time}</td><td>${r.train || ""}</td><td>${priceCell}</td>`;
+    // Ostolinkki vain varattaville lähdöille; vie VR.fi:n hakuun tälle reitille ja päivälle.
+    const buyCell =
+      soldOut || !route
+        ? ""
+        : `<a class="buy-link" href="${vrBuyUrl(route.from, route.to, travelDate)}" target="_blank" rel="noopener" title="Avaa VR.fi:n haku tälle reitille ja päivälle">Osta&nbsp;↗</a>`;
+    tr.innerHTML = `<td>${r.time}</td><td>${r.train || ""}</td><td>${priceCell}</td><td class="buy-cell">${buyCell}</td>`;
+    // Ostolinkin klikkaus ei saa myös valita riviä (hintakäyrää).
+    const buyLink = tr.querySelector(".buy-link");
+    if (buyLink) buyLink.addEventListener("click", (e) => e.stopPropagation());
     tr.onclick = () => {
       tbody.querySelectorAll("tr").forEach((x) => x.classList.remove("active"));
       tr.classList.add("active");

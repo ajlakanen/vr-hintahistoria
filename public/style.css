@@ -273,6 +273,39 @@ tbody tr {
   }
 }
 
+/* Ostolinkki lähtörivin lopussa: kompakti pilleri, joka vie VR.fi:n hakuun. */
+.buy-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.buy-link {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  background: var(--c-accent);
+  /* Tumma teksti vihreällä pillerillä yltää WCAG AA -kontrastiin (5.1:1); valkoinen ei (3.4:1). */
+  color: var(--c-text);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover { filter: brightness(0.95); }
+}
+
+/* Vain ruudunlukijalle (piilotettu visuaalisesti) — esim. "Osta"-sarakeotsikko. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .sold-out-tag {
   display: inline-block;
   margin-left: var(--space-2);

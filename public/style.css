@@ -280,16 +280,22 @@ tbody tr {
   white-space: nowrap;
 }
 
-/* Huomaamaton tekstilinkki (ei täytettyä pilleriä, joka pomppaisi listasta liikaa).
-   Tummavihreä teksti yltää WCAG AA -kontrastiin (6.7:1 valkoisella). */
+/* Ääriviivanappi ("ghost"): näyttää napilta ja rajaa klikkausalueen, muttei pompi
+   listasta kuten täytetty pilleri. Suorakaide (radius-sm) erottaa sen halvin-pillereistä.
+   Tummavihreä teksti yltää WCAG AA -kontrastiin (6.7:1 valkoisella, 5.0:1 hoverilla). */
 .buy-link {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  background: var(--c-surface);
   color: var(--c-accent-strong);
+  border: 1px solid var(--c-accent);
+  border-radius: var(--radius-sm);
   font-size: var(--fs-sm);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
 
-  &:hover { text-decoration: underline; }
+  &:hover { background: var(--c-accent-soft); }
 }
 
 /* Vain ruudunlukijalle (piilotettu visuaalisesti) — esim. "Osta"-sarakeotsikko. */

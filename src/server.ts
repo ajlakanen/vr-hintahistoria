@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { loadConfig, PUBLIC_DIR } from "./config.ts";
-import { getDb, getActiveRoutes } from "./db.ts";
+import { getDb, getActiveRoutes, expandHistorySegments, type HistorySegment } from "./db.ts";
 import { log } from "./logger.ts";
 
 const MIME: Record<string, string> = {
@@ -64,16 +64,18 @@ function apiDepartures(routeId: number, travelDate: string) {
     .all(routeId, travelDate);
 }
 
-/** Booking-käyrä: miten yhden lähdön hinta on kehittynyt ajopäivittäin. */
+/** Booking-käyrä: miten yhden lähdön hinta on kehittynyt ajopäivittäin. Kanta tallentaa vain
+ *  muutoskohdat (segmentit); laajennetaan takaisin päiväkohtaiseksi sarjaksi näyttöä varten. */
 function apiHistory(routeId: number, travelDate: string, departureTime: string) {
-  return getDb()
+  const segments = getDb()
     .prepare(
-      `SELECT scrape_date AS scrapeDate, price, currency, available
+      `SELECT scrape_date AS scrapeDate, last_scrape_date AS lastScrapeDate, price, currency, available
        FROM price_history
        WHERE route_id = ? AND travel_date = ? AND departure_time = ?
        ORDER BY scrape_date`
     )
-    .all(routeId, travelDate, departureTime);
+    .all(routeId, travelDate, departureTime) as unknown as HistorySegment[];
+  return expandHistorySegments(segments);
 }
 
 // ---------- staattiset tiedostot ----------

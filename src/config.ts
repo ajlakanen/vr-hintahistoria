@@ -6,7 +6,9 @@ import type { AppConfig } from "./types.ts";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const PROJECT_ROOT = join(__dirname, "..");
 export const DATA_DIR = join(PROJECT_ROOT, "data");
-export const DB_PATH = join(DATA_DIR, "prices.db");
+// Kannan polku; VR_DB_PATH-ympäristömuuttuja voi ohittaa sen (mm. testit -> ei kosketa
+// oikeaa kantaa). Tyhjä/asettamaton = oletus data/prices.db.
+export const DB_PATH = process.env.VR_DB_PATH || join(DATA_DIR, "prices.db");
 export const PUBLIC_DIR = join(PROJECT_ROOT, "public");
 
 let cached: AppConfig | null = null;

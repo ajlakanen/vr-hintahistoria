@@ -48,19 +48,25 @@ function initSchema(d: DatabaseSync): void {
       PRIMARY KEY (route_id, travel_date, departure_time, train_number)
     );
 
-    -- Aikasarja: jokainen ajo lisää rivin -> nähdään miten lähdön hinta kehittyy.
-    -- available kertoo oliko lähtö varattavissa kyseisenä keräyspäivänä.
+    -- Aikasarja (booking-käyrä) "store-on-change"-muodossa: yksi rivi = SEGMENTTI, jonka
+    -- aikana hinta ja saatavuus pysyivät samana. scrape_date = segmentin alku (ensimmäinen
+    -- keräyspäivä tällä hinnalla), last_scrape_date = segmentin loppu (viimeisin keräyspäivä,
+    -- jolloin sama hinta vielä havaittiin). Muuttumaton keräys vain pidentää segmenttiä, eikä
+    -- lisää uutta riviä -> kanta ei paisu (VR:n hinnat ovat tahmeita). Näyttöä varten segmentit
+    -- laajennetaan takaisin päiväkohtaiseksi sarjaksi (expandHistorySegments).
+    -- available kertoo oliko lähtö varattavissa segmentin aikana.
     CREATE TABLE IF NOT EXISTS price_history (
-      id             INTEGER PRIMARY KEY AUTOINCREMENT,
-      route_id       INTEGER NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
-      travel_date    TEXT NOT NULL,
-      departure_time TEXT NOT NULL,
-      train_number   TEXT,
-      price          REAL NOT NULL,
-      currency       TEXT NOT NULL DEFAULT 'EUR',
-      available      INTEGER NOT NULL DEFAULT 1,
-      scrape_date    TEXT NOT NULL,
-      scraped_at     TEXT NOT NULL,
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      route_id         INTEGER NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
+      travel_date      TEXT NOT NULL,
+      departure_time   TEXT NOT NULL,
+      train_number     TEXT,
+      price            REAL NOT NULL,
+      currency         TEXT NOT NULL DEFAULT 'EUR',
+      available        INTEGER NOT NULL DEFAULT 1,
+      scrape_date      TEXT NOT NULL,
+      last_scrape_date TEXT,
+      scraped_at       TEXT NOT NULL,
       UNIQUE (route_id, travel_date, departure_time, train_number, scrape_date)
     );
 
@@ -73,13 +79,20 @@ function initSchema(d: DatabaseSync): void {
   // Migraatio vanhoille kannoille: lisää 'available'-sarake jos se puuttuu.
   addColumnIfMissing(d, "prices", "available", "INTEGER NOT NULL DEFAULT 1");
   addColumnIfMissing(d, "price_history", "available", "INTEGER NOT NULL DEFAULT 1");
+
+  // Migraatio store-on-change-muotoon: lisää segmentin loppu. Vanhat päiväkohtaiset rivit
+  // ovat yhden päivän segmenttejä (last_scrape_date = scrape_date). Mitään ei poisteta.
+  if (addColumnIfMissing(d, "price_history", "last_scrape_date", "TEXT")) {
+    d.exec("UPDATE price_history SET last_scrape_date = scrape_date WHERE last_scrape_date IS NULL");
+  }
 }
 
-/** Lisää sarakkeen tauluun jos sitä ei vielä ole (idempotentti migraatio). */
-function addColumnIfMissing(d: DatabaseSync, table: string, column: string, def: string): void {
+/** Lisää sarakkeen tauluun jos sitä ei vielä ole. Palauttaa true jos sarake lisättiin. */
+function addColumnIfMissing(d: DatabaseSync, table: string, column: string, def: string): boolean {
   const cols = d.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-  if (cols.some((c) => c.name === column)) return;
+  if (cols.some((c) => c.name === column)) return false;
   d.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
+  return true;
 }
 
 export function upsertRoute(
@@ -132,8 +145,66 @@ export function lastScrapedAt(routeId: number, travelDate: string): string | nul
 }
 
 /**
- * Tallentaa yhden lähdön hinnan: päivittää 'prices' (upsert) ja lisää
- * 'price_history' -rivin (yksi per ajopäivä). Palauttaa true jos uusi historiarivi syntyi.
+ * Kirjaa yhden booking-käyrän pisteen "store-on-change"-periaatteella: jos lähdön hinta ja
+ * saatavuus ovat samat kuin sen viimeisimmässä segmentissä, vain pidennetään segmenttiä
+ * (last_scrape_date -> scrapeDate) eikä lisätä uutta riviä. Muutoksella (tai ensihavainnolla)
+ * lisätään uusi segmentti. Palauttaa true jos uusi segmentti syntyi (= hinta/saatavuus muuttui).
+ *
+ * COALESCE(train_number,'') sietää sekä uudet ("") että vanhat (NULL) junanumerot.
+ */
+function recordHistoryPoint(
+  d: DatabaseSync,
+  routeId: number,
+  travelDate: string,
+  departureTime: string,
+  trainNumber: string | null,
+  price: number,
+  currency: string,
+  available: number,
+  scrapeDate: string,
+  now: string
+): boolean {
+  const tn = trainNumber ?? "";
+  const last = d
+    .prepare(
+      `SELECT id, price, available, scrape_date, last_scrape_date
+       FROM price_history
+       WHERE route_id = ? AND travel_date = ? AND departure_time = ? AND COALESCE(train_number,'') = ?
+       ORDER BY scrape_date DESC LIMIT 1`
+    )
+    .get(routeId, travelDate, departureTime, tn) as
+    | { id: number; price: number; available: number; scrape_date: string; last_scrape_date: string | null }
+    | undefined;
+
+  if (last && last.price === price && last.available === available) {
+    // Muuttumaton -> pidennä viimeisintä segmenttiä (ei uutta riviä). Päivitä myös scraped_at,
+    // jotta lastScrapedAt (freshness) pysyy tuoreena. Ei siirretä loppua taaksepäin.
+    const end = last.last_scrape_date ?? last.scrape_date;
+    if (scrapeDate >= end) {
+      d.prepare(`UPDATE price_history SET last_scrape_date = ?, scraped_at = ? WHERE id = ?`)
+        .run(scrapeDate, now, last.id);
+    }
+    return false;
+  }
+
+  // Muutos tai ensimmäinen havainto -> uusi segmentti. Saman päivän toistohaku (sama scrape_date)
+  // ylikirjoittaa pisteen tuoreimmalla arvolla.
+  d.prepare(
+    `INSERT INTO price_history
+       (route_id, travel_date, departure_time, train_number, price, currency, available, scrape_date, last_scrape_date, scraped_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (route_id, travel_date, departure_time, train_number, scrape_date)
+     DO UPDATE SET price            = excluded.price,
+                   available        = excluded.available,
+                   last_scrape_date = excluded.last_scrape_date,
+                   scraped_at       = excluded.scraped_at`
+  ).run(routeId, travelDate, departureTime, tn, price, currency, available, scrapeDate, scrapeDate, now);
+  return true;
+}
+
+/**
+ * Tallentaa yhden lähdön hinnan: päivittää 'prices' (upsert) ja kirjaa booking-käyrän pisteen
+ * store-on-change-periaatteella. Palauttaa true jos hinta/saatavuus muuttui (uusi segmentti).
  */
 export function recordPrice(routeId: number, p: JourneyPrice, scrapeDate: string): boolean {
   const d = getDb();
@@ -168,24 +239,18 @@ export function recordPrice(routeId: number, p: JourneyPrice, scrapeDate: string
     now
   );
 
-  const res = d
-    .prepare(
-      `INSERT OR IGNORE INTO price_history
-         (route_id, travel_date, departure_time, train_number, price, currency, available, scrape_date, scraped_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      routeId,
-      p.travelDate,
-      p.departureTime,
-      p.trainNumber,
-      p.price,
-      p.currency,
-      available,
-      scrapeDate,
-      now
-    );
-  return res.changes > 0;
+  return recordHistoryPoint(
+    d,
+    routeId,
+    p.travelDate,
+    p.departureTime,
+    trainNumber,
+    p.price,
+    p.currency,
+    available,
+    scrapeDate,
+    now
+  );
 }
 
 /**
@@ -223,28 +288,69 @@ export function markDeparturesSoldOut(
     `UPDATE prices SET available = 0, updated_at = ?
      WHERE route_id = ? AND travel_date = ? AND departure_time = ? AND train_number = ?`
   );
-  const markHistory = d.prepare(
-    `INSERT OR IGNORE INTO price_history
-       (route_id, travel_date, departure_time, train_number, price, currency, available, scrape_date, scraped_at)
-     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`
-  );
 
   let count = 0;
   for (const row of existing) {
     const trainNumber = row.train_number ?? "";
     if (presentKeys.has(`${row.departure_time} ${trainNumber}`)) continue;
     markPrice.run(now, routeId, travelDate, row.departure_time, trainNumber);
-    markHistory.run(
+    // Loppuunmyynti = saatavuus muuttuu 1 -> 0: store-on-change kirjaa siitä uuden segmentin
+    // (ja seuraavat samanlaiset keräyspäivät vain pidentävät sitä).
+    recordHistoryPoint(
+      d,
       routeId,
       travelDate,
       row.departure_time,
       trainNumber,
       row.price,
       row.currency,
+      0,
       scrapeDate,
       now
     );
     count++;
   }
   return count;
+}
+
+/** Yksi näytettävä booking-käyrän piste (yhden keräyspäivän hinta/saatavuus). */
+export interface HistoryPoint {
+  scrapeDate: string;
+  price: number;
+  currency: string;
+  available: number;
+}
+
+/** Tallennettu segmentti: vakiohinta välillä [scrapeDate, lastScrapeDate]. */
+export interface HistorySegment extends HistoryPoint {
+  lastScrapeDate: string | null;
+}
+
+/** Päivät "YYYY-MM-DD" välillä [start, end] (mukaan lukien). UTC-pohjainen askellus. */
+function eachDateInclusive(start: string, end: string): string[] {
+  if (end < start) return [start];
+  const out: string[] = [];
+  const cur = new Date(start + "T00:00:00Z");
+  const last = new Date(end + "T00:00:00Z");
+  while (cur <= last) {
+    out.push(cur.toISOString().slice(0, 10));
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return out;
+}
+
+/**
+ * Laajentaa store-on-change-segmentit takaisin päiväkohtaiseksi sarjaksi näyttöä varten:
+ * jokainen segmentti [scrapeDate, lastScrapeDate] tuottaa pisteen joka päivälle samalla
+ * hinnalla/saatavuudella. Näin booking-käyrä piirtyy täsmälleen kuten ennenkin, vaikka kanta
+ * tallentaa vain muutoskohdat. Segmentit oletetaan järjestetyiksi scrape_date-nousevasti.
+ */
+export function expandHistorySegments(segments: HistorySegment[]): HistoryPoint[] {
+  const out: HistoryPoint[] = [];
+  for (const s of segments) {
+    for (const date of eachDateInclusive(s.scrapeDate, s.lastScrapeDate ?? s.scrapeDate)) {
+      out.push({ scrapeDate: date, price: s.price, currency: s.currency, available: s.available });
+    }
+  }
+  return out;
 }

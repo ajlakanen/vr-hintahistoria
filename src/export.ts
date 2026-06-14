@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync, readFileSync, cpSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { PROJECT_ROOT, PUBLIC_DIR } from "./config.ts";
-import { getDb, getActiveRoutes } from "./db.ts";
+import { getDb, getActiveRoutes, expandHistorySegments } from "./db.ts";
 import { log } from "./logger.ts";
 
 /**
@@ -29,6 +29,7 @@ interface HistRow {
   travel_date: string;
   departure_time: string;
   scrapeDate: string;
+  lastScrapeDate: string | null;
   price: number;
   currency: string;
   available: number;
@@ -70,7 +71,9 @@ function main(): void {
      FROM prices WHERE route_id = ? ORDER BY travel_date, departure_time`
   );
   const histStmt = db.prepare(
-    `SELECT travel_date, departure_time, scrape_date AS scrapeDate, price, currency, available
+    // Segmentit (store-on-change); laajennetaan päiväkohtaisiksi pisteiksi alla.
+    `SELECT travel_date, departure_time, scrape_date AS scrapeDate, last_scrape_date AS lastScrapeDate,
+            price, currency, available
      FROM price_history WHERE route_id = ? ORDER BY travel_date, departure_time, scrape_date`
   );
 
@@ -96,12 +99,18 @@ function main(): void {
     > = {};
     for (const h of histStmt.all(r.id) as unknown as HistRow[]) {
       const key = `${h.travel_date}|${h.departure_time}`;
-      (history[key] ??= []).push({
-        scrapeDate: h.scrapeDate,
-        price: h.price,
-        currency: h.currency,
-        available: h.available,
-      });
+      // Laajenna segmentti [scrapeDate, lastScrapeDate] takaisin päiväkohtaisiksi pisteiksi.
+      (history[key] ??= []).push(
+        ...expandHistorySegments([
+          {
+            scrapeDate: h.scrapeDate,
+            lastScrapeDate: h.lastScrapeDate,
+            price: h.price,
+            currency: h.currency,
+            available: h.available,
+          },
+        ])
+      );
     }
 
     const blob = {

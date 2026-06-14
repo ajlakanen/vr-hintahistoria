@@ -99,7 +99,7 @@ async function main(): Promise<void> {
   }
 
   log.info(
-    `Valmis. Historiarivejä lisätty: ${rowsWritten}. Ohitettu tuoreina: ${skipped}. ` +
+    `Valmis. Hintamuutoksia kirjattu (uusia segmenttejä): ${rowsWritten}. Ohitettu tuoreina: ${skipped}. ` +
       `Epäonnistuneita hakuja: ${failures}/${total}.`
   );
 }

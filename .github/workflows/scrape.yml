@@ -1,0 +1,104 @@
+name: scrape
+
+# Päivittäinen hintojen keräys GitHub Actionsissa.
+#
+# Tila (SQLite-kanta) säilytetään omassa 'data'-haarassa: se noudetaan ajon alussa,
+# päivitetään keräyksessä ja työnnetään takaisin yhdellä force-push-commitilla (ei
+# historian kertymää). Valmis staattinen sivu julkaistaan 'gh-pages'-haaraan.
+#
+# Käsiajo testiksi (kevyt, validoi koko putken):
+#   gh workflow run scrape.yml -f daysAhead=2
+
+on:
+  schedule:
+    # 01:30 UTC = n. 03:30/04:30 Suomen aikaa (talvi/kesä). Cron on aina UTC.
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+    inputs:
+      daysAhead:
+        description: "Ohita config.json:n daysAhead (testiajoa varten, esim. 2). Tyhjä = käytä configia."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+# Estä päällekkäisajot: kanta on single-writer. Ei keskeytetä käynnissä olevaa.
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    # GitHubin kova kattokin on 6 h/job. Täysi ajo on ~3,5 h; jätetään marginaalia.
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Välimuistita Chromium, jottei sitä ladata joka ajossa uudelleen.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Asenna riippuvuudet
+        run: npm ci
+
+      - name: Asenna Chromium + OS-riippuvuudet
+        run: npx playwright install --with-deps chromium
+
+      - name: Nouda kanta data-haarasta
+        run: |
+          mkdir -p data
+          if git fetch origin data --depth=1 2>/dev/null; then
+            git show FETCH_HEAD:prices.db > data/prices.db
+            echo "Kanta noudettu data-haarasta ($(du -h data/prices.db | cut -f1))."
+          else
+            echo "Ei data-haaraa vielä — ensimmäinen ajo, aloitetaan tyhjästä."
+          fi
+
+      # Vain käsiajossa annetulla daysAhead-arvolla: rajoita keräyksen laajuus.
+      - name: (valinnainen) rajoita daysAhead
+        if: ${{ inputs.daysAhead != '' }}
+        env:
+          DAYS: ${{ inputs.daysAhead }}
+        run: |
+          node --input-type=commonjs -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('config.json','utf8'));const d=Number(process.env.DAYS);if(d>0){c.daysAhead=d;fs.writeFileSync('config.json',JSON.stringify(c,null,2));}console.log('daysAhead =',c.daysAhead);"
+
+      - name: Alusta reitit (seed, idempotentti)
+        run: npm run seed
+
+      - name: Aja keräys
+        run: npm run scrape
+
+      - name: WAL-checkpoint (kirjoita muutokset prices.db:hen)
+        run: |
+          node --input-type=module -e "import {DatabaseSync} from 'node:sqlite'; const d=new DatabaseSync('data/prices.db'); d.exec('PRAGMA wal_checkpoint(TRUNCATE)'); d.close();"
+
+      - name: Esirenderöi staattinen sivu (export)
+        run: npm run export
+
+      - name: Työnnä kanta data-haaraan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tmp=$(mktemp -d)
+          cp data/prices.db "$tmp/prices.db"
+          cd "$tmp"
+          git init -q
+          git checkout -q -b data
+          git add prices.db
+          git -c user.email=actions@github.com -c user.name="github-actions[bot]" \
+            commit -qm "DB update (run ${GITHUB_RUN_ID})"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+          echo "Kanta työnnetty data-haaraan."
+
+      - name: Julkaise sivu (gh-pages)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run deploy

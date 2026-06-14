@@ -28,6 +28,14 @@ try {
   process.exit(1);
 }
 
+// CI: GitHub Actionsissa ei ole tallennettuja git-tunnuksia, joten autentikoidaan
+// push GITHUB_TOKENilla. Paikallisesti (ilman näitä ympäristömuuttujia) käytetään
+// origin-remotea sellaisenaan, jolloin git-credential-helper hoitaa tunnukset.
+const ghToken = process.env.GITHUB_TOKEN;
+const ghRepo = process.env.GITHUB_REPOSITORY; // muotoa "owner/repo"
+const pushUrl =
+  ghToken && ghRepo ? `https://x-access-token:${ghToken}@github.com/${ghRepo}.git` : remote;
+
 writeFileSync(join(DOCS, ".nojekyll"), "");
 
 // Julkaise docs/ orpona gh-pages-haarana: oma kertakäyttöinen git-repo docs/:ssa,
@@ -38,7 +46,7 @@ git("git init -q");
 git("git checkout -q -b gh-pages");
 git("git add -A");
 git('git -c user.name=deploy -c user.email=deploy@local commit -q -m "Deploy site"');
-git(`git push -f ${JSON.stringify(remote)} gh-pages`);
+git(`git push -f ${JSON.stringify(pushUrl)} gh-pages`);
 rmSync(join(DOCS, ".git"), { recursive: true, force: true });
 
 console.log("\n✓ Julkaistu gh-pages-haaraan. GitHub Pages päivittyy hetken kuluttua.");

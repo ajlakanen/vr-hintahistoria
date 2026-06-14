@@ -468,14 +468,22 @@ async function loadDepartures(travelDate) {
   $("departures").hidden = false;
   const tbody = $("departures").querySelector("tbody");
   tbody.innerHTML = "";
+  // Päivän halvin VARATTAVISSA oleva hinta (loppuunmyytyjä ei lasketa). Voi osua useaan
+  // lähtöön (tasapeli) -> kaikki sen hintaiset saavat merkin.
+  const bookablePrices = rows.filter((d) => d.available !== 0).map((d) => d.price);
+  const minPrice = bookablePrices.length ? Math.min(...bookablePrices) : null;
   for (const r of rows) {
     const tr = document.createElement("tr");
     // available voi puuttua vanhasta staattisesta datasta -> tulkitaan varattavaksi.
     const soldOut = r.available === 0;
     if (soldOut) tr.classList.add("sold-out");
+    const cheapest = !soldOut && minPrice !== null && r.price === minPrice;
+    const cheapestTag = cheapest
+      ? ' <span class="cheapest-tag">⭐ Päivän halvin!</span>'
+      : "";
     const priceCell = soldOut
       ? `${r.price.toFixed(2)} ${r.currency} <span class="sold-out-tag">ei varattavissa</span>`
-      : `${r.price.toFixed(2)} ${r.currency}`;
+      : `${r.price.toFixed(2)} ${r.currency}${cheapestTag}`;
     tr.title = soldOut ? "Lähtöä ei voi enää varata — hinta on viimeksi tiedetty hinta." : "";
     // Ostolinkki vain varattaville lähdöille; vie VR.fi:n hakuun tälle reitille ja päivälle.
     const buyCell =

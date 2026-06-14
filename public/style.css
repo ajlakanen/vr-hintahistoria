@@ -5,6 +5,7 @@
 :root {
   /* --- Värit: brändi & pinnat --- */
   --c-accent: #00a149;          /* VR-vihreä: otsikot, napit, halvin-käyrä */
+  --c-accent-strong: #007d36;   /* tummempi vihreä: teksti vaalealla taustalla (WCAG AA) */
   --c-accent-soft: #f0fbf4;     /* accentin vaalea tausta: hover, huomiolaatikko */
   --c-accent-active: #e0f5e9;   /* valitun taulukkorivin tausta */
   --c-danger: #d11507;          /* loppuunmyyty / ei varattavissa */
@@ -279,18 +280,16 @@ tbody tr {
   white-space: nowrap;
 }
 
+/* Huomaamaton tekstilinkki (ei täytettyä pilleriä, joka pomppaisi listasta liikaa).
+   Tummavihreä teksti yltää WCAG AA -kontrastiin (6.7:1 valkoisella). */
 .buy-link {
-  display: inline-block;
-  padding: 0.15rem 0.6rem;
-  background: var(--c-accent);
-  /* Tumma teksti vihreällä pillerillä yltää WCAG AA -kontrastiin (5.1:1); valkoinen ei (3.4:1). */
-  color: var(--c-text);
-  border-radius: var(--radius-pill);
+  color: var(--c-accent-strong);
   font-size: var(--fs-sm);
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
 
-  &:hover { filter: brightness(0.95); }
+  &:hover { text-decoration: underline; }
 }
 
 /* Vain ruudunlukijalle (piilotettu visuaalisesti) — esim. "Osta"-sarakeotsikko. */
@@ -318,6 +317,23 @@ tbody tr {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+}
+
+/* "Päivän halvin!" -merkki halvimman varattavan lähdön hinnan vieressä.
+   Pehmeä accent-pilleri (tummavihreä teksti = WCAG AA 5:1), erottuu täytetystä
+   Osta-napista. ⭐ tuo painotuksen myös ilman väriä. */
+.cheapest-tag {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0.05rem 0.45rem;
+  vertical-align: middle;
+  color: var(--c-accent-strong);
+  background: var(--c-accent-soft);
+  border: 1px solid var(--c-accent);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 /* ============================================================================

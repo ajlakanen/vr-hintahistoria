@@ -3,8 +3,16 @@
    kovakoodaa arvoja sääntöihin, vaan viittaa var(--token):iin.
    ============================================================================ */
 :root {
-  /* --- Värit: brändi & pinnat --- */
-  --c-accent: #00a149;          /* VR-vihreä: otsikot, napit, halvin-käyrä */
+  /* Kertoo selaimelle, että sivu on vaalea -> natiivit kontrollit (mm. <input type=date>,
+     vieritinpalkit) renderöityvät vaalealla. Tumma teema asettaa tämän darkiksi. */
+  color-scheme: light;
+
+  /* --- Värit: brändi & pinnat ---
+     Kontrastit täyttävät WCAG 2.1 AA: leipäteksti ≥4.5:1, suuri teksti / graafiset
+     elementit ≥3:1. accent on kirkas brändivihreä KORISTEISIIN (otsikot, käyrä, reunat),
+     joissa riittää 3:1; valkoisen tekstin TAUSTANA käytetään tummempaa accent-strongia. */
+  --c-accent: #00a149;          /* VR-vihreä: otsikot, halvin-käyrä, valittu päivä */
+  --c-accent-strong: #007d36;   /* napit: tummempi, jotta valkoinen teksti yltää 4.5:1 */
   --c-accent-soft: #f0fbf4;     /* accentin vaalea tausta: hover, huomiolaatikko */
   --c-accent-active: #e0f5e9;   /* valitun taulukkorivin tausta */
   --c-danger: #d11507;          /* loppuunmyyty / ei varattavissa */
@@ -15,8 +23,9 @@
   --c-bg: #f5f6f7;              /* sivun tausta */
   --c-surface: #ffffff;        /* kortit, paneelit, napit */
   --c-text: #1a1a1a;
-  --c-text-on-accent: #ffffff; /* teksti värillisen taustan päällä */
-  --c-muted: #6b7280;
+  --c-text-on-accent: #ffffff; /* teksti accent-strongin / napin päällä */
+  --c-on-danger: #ffffff;      /* teksti danger-taustan (esim. tagi) päällä */
+  --c-muted: #646b76;          /* himmennetty teksti; tummennettu yltämään 4.5:1 vaalealla taustalla */
   --c-border: #e3e6e8;
 
   /* --- Tekstikoot --- */
@@ -52,6 +61,43 @@
   --c-chart-min: var(--c-accent);
   --c-chart-avg: #888888;
   --c-chart-hist: #0b6bcb;
+  --c-chart-text: #666666;            /* akselien/legendan teksti (Chart.defaults.color) */
+  --c-chart-grid: rgba(0, 0, 0, 0.1); /* ruudukon viivat (Chart.defaults.borderColor) */
+  --c-chart-band: rgba(20, 20, 20, 0.07); /* viikonloppupalkin varjostus */
+  --c-chart-marker: rgba(20, 20, 20, 0.25); /* kursorin kohdan katkoviiva */
+}
+
+/* ============================================================================
+   Tumma teema. Aktivoituu kun <html data-theme="dark">; arvon asettaa app.js
+   (localStorage + prefers-color-scheme). Yliajaa vain värit — koot/välit periytyvät.
+   ============================================================================ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --c-accent: #19b85f;          /* hieman kirkkaampi vihreä tummalle taustalle (otsikot, käyrä) */
+  --c-accent-strong: #00833a;   /* napit: valkoinen teksti yltää 4.5:1 */
+  --c-accent-soft: #16271d;     /* tumma vihreä sävy: hover, huomiolaatikko */
+  --c-accent-active: #1d3528;   /* valitun taulukkorivin tausta */
+  --c-danger: #ff6b61;          /* kirkas punainen: hyvä luettavuus tekstinä tummalla pinnalla */
+  --c-danger-soft: #2c1b1a;
+  --c-danger-active: #3a201e;
+  --c-warn: #ff8a5c;
+
+  --c-bg: #15181c;
+  --c-surface: #1e2227;
+  --c-text: #e6e8ea;
+  --c-text-on-accent: #ffffff;
+  /* Tagin tausta on kirkas danger-punainen -> tumma teksti yltää 4.5:1 (valkoinen ei). */
+  --c-on-danger: #15181c;
+  --c-muted: #9aa3ab;
+  --c-border: #2c3137;
+
+  --c-chart-avg: #9aa3ab;
+  --c-chart-hist: #4aa3ff;      /* vaaleampi sininen tummalla taustalla */
+  --c-chart-text: #c2c8ce;
+  --c-chart-grid: rgba(255, 255, 255, 0.1);
+  --c-chart-band: rgba(255, 255, 255, 0.06);
+  --c-chart-marker: rgba(255, 255, 255, 0.3);
 }
 
 /* HUOM: media query -rajaa (760px) ei voi ilmaista var():lla, koska CSS-muuttujat
@@ -77,9 +123,35 @@ a { color: var(--c-chart-hist); }
 /* ============================================================================
    Otsikko, huomiolaatikko, alatunniste
    ============================================================================ */
+/* Otsikkorivi: nimi vasemmalle, teemanappi oikealle. */
+.topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 header h1 {
   margin: 0 0 var(--space-1);
   color: var(--c-accent);
+}
+
+/* Vaalea/tumma-vaihtonappi: huomaamaton, pinnanvärinen ikoninappi. */
+.theme-toggle {
+  flex: 0 0 auto;
+  padding: var(--space-2);
+  min-width: 2.5rem;
+  background: var(--c-surface);
+  color: var(--c-text);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-control);
+  line-height: 1;
+
+  &:hover {
+    background: var(--c-accent-soft);
+    filter: none;
+  }
 }
 
 .muted {
@@ -139,7 +211,7 @@ header h1 {
 
 button {
   padding: 0.6rem 1.2rem;
-  background: var(--c-accent);
+  background: var(--c-accent-strong);
   color: var(--c-text-on-accent);
   border: 0;
   border-radius: var(--radius-sm);
@@ -278,7 +350,7 @@ tbody tr {
   margin-left: var(--space-2);
   padding: 0.05rem 0.4rem;
   vertical-align: middle;
-  color: var(--c-text-on-accent);
+  color: var(--c-on-danger);
   background: var(--c-danger);
   border-radius: var(--radius-pill);
   font-size: var(--fs-xs);

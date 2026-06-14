@@ -5,11 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>VR dynaamisen hinnoittelun seuraaja</title>
     <link rel="stylesheet" href="style.css" />
+    <!-- Aseta teema ENNEN tyylien/sisällön piirtoa, ettei vaalea taustaväri vilkahda
+         tummaa teemaa käytettäessä (FOUC). Sama logiikka kuin app.js:n initTheme. -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("theme");
+          var dark = saved
+            ? saved === "dark"
+            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (dark) document.documentElement.setAttribute("data-theme", "dark");
+        } catch (e) {}
+      })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   </head>
   <body>
     <header>
-      <h1>VR dynaamisen hinnoittelun seuraaja</h1>
+      <div class="topbar">
+        <h1>VR dynaamisen hinnoittelun seuraaja</h1>
+        <button type="button" id="themeToggle" class="theme-toggle" aria-label="Vaihda teemaa"></button>
+      </div>
       <p class="muted">Tarkastele kerättyjä hintoja valitsemallasi reitillä ja aikavälillä.</p>
       <p class="muted note">
         ℹ️ Seurattavat reitit on valittu Suomen suosituimmista yhteysväleistä matkustajamäärien

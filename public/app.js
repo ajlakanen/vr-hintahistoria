@@ -2,6 +2,7 @@ const $ = (id) => document.getElementById(id);
 let calendarChart, historyChart;
 let currentRouteId = null;
 let selectedDate = null; // kalenterista valittu lähtöpäivä (pystyviivaa varten)
+let lastHistory = null;  // { travelDate, time } viimeksi avatusta hintakäyrästä (teeman vaihtoa varten)
 const NARROW = 760; // leveysraja (sama kuin CSS-media query)
 let narrowMode = window.innerWidth < NARROW;
 
@@ -82,7 +83,7 @@ const weekendBands = {
       labels.length > 1 ? x.getPixelForValue(1) - x.getPixelForValue(0) : 20;
     const ctx = chart.ctx;
     ctx.save();
-    ctx.fillStyle = "rgba(20, 20, 20, 0.07)";
+    ctx.fillStyle = cssVar("--c-chart-band");
     for (let i = 0; i < labels.length; i++) {
       if (!isWeekend(labels[i])) continue;
       const c = x.getPixelForValue(i);
@@ -116,11 +117,11 @@ const dayMarker = {
     };
     // Kursorin kohdalla oleva päivä (himmeä katkoviiva).
     const active = chart.getActiveElements();
-    if (active.length) line(active[0].element.x, "rgba(20,20,20,0.25)", 1, [4, 3]);
+    if (active.length) line(active[0].element.x, cssVar("--c-chart-marker"), 1, [4, 3]);
     // Valittu päivä (kiinteä vihreä viiva).
     if (selectedDate != null) {
       const idx = (chart.data.labels || []).indexOf(selectedDate);
-      if (idx >= 0) line(x.getPixelForValue(idx), "#00a149", 2, []);
+      if (idx >= 0) line(x.getPixelForValue(idx), cssVar("--c-accent"), 2, []);
     }
   },
 };
@@ -135,7 +136,7 @@ const noData = {
     const { ctx, chartArea: area } = chart;
     if (!area) return;
     ctx.save();
-    ctx.fillStyle = "#6b7280";
+    ctx.fillStyle = cssVar("--c-muted");
     ctx.font = "600 15px system-ui, -apple-system, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -407,6 +408,7 @@ function showDepHint(msg) {
 
 /** Palauttaa hintakäyrän alkutilaan (näyttää taas kehotteen). */
 function clearHistory() {
+  lastHistory = null;
   $("histTitle").textContent = "Hintakehitys (booking-käyrä)";
   $("histHint").hidden = false;
   if (historyChart) { historyChart.destroy(); historyChart = null; }
@@ -476,6 +478,7 @@ async function loadDepartures(travelDate) {
 }
 
 async function loadHistory(travelDate, time) {
+  lastHistory = { travelDate, time };
   $("histHint").hidden = true;
   $("histTitle").textContent = `Hintakehitys — ${fmtFiDate(travelDate)} klo ${time}`;
   let rows;
@@ -573,6 +576,67 @@ document.querySelectorAll(".cal-btn").forEach((btn) => {
     date.click();
   });
 });
+
+// ---------- Vaalea/tumma teema ----------
+// HUOM: index.html:n <head>-skripti asettaa data-theme-attribuutin jo ENNEN piirtoa
+// (estää vaalean välähdyksen). Täällä hoidetaan napin tila, tallennus ja kaavioiden
+// uudelleenpiirto, koska Chart.js lukee värit vain luontihetkellä.
+
+/** Onko tumma teema nyt aktiivinen (luetaan <html>-attribuutista). */
+function isDark() {
+  return document.documentElement.getAttribute("data-theme") === "dark";
+}
+
+/** Päivittää napin ikonin + saavutettavuustekstit nykyisen teeman mukaan. */
+function updateThemeButton() {
+  const btn = $("themeToggle");
+  if (!btn) return;
+  const dark = isDark();
+  // Ikoni kertoo MIHIN teemaan napautus vaihtaa.
+  btn.textContent = dark ? "☀️" : "🌙";
+  const label = dark ? "Vaihda vaaleaan teemaan" : "Vaihda tummaan teemaan";
+  btn.setAttribute("aria-label", label);
+  btn.title = label;
+}
+
+/** Asettaa Chart.js:n globaalit oletusvärit teeman CSS-muuttujista (akselit, ruudukko, legenda).
+ *  Resolvoituu piirrettäessä, joten olemassa olevat kaaviot päivittyvät update()-kutsulla. */
+function applyChartTheme() {
+  if (typeof Chart === "undefined") return;
+  Chart.defaults.color = cssVar("--c-chart-text");
+  Chart.defaults.borderColor = cssVar("--c-chart-grid");
+}
+
+/** Piirtää näkyvät kaaviot uudelleen uusilla väreillä ja palauttaa valitun päivän/lähdön. */
+async function rerenderCharts() {
+  if (!currentRouteId) return;
+  const day = selectedDate;
+  const hist = lastHistory;
+  await loadCalendar(); // nollaa valinnat -> palautetaan ne alla
+  if (day) await loadDepartures(day);
+  if (hist) {
+    await loadHistory(hist.travelDate, hist.time);
+    // Korosta uudelleen se lähtörivi, jonka käyrä on auki.
+    const tbody = $("departures").querySelector("tbody");
+    tbody.querySelectorAll("tr").forEach((tr) => {
+      tr.classList.toggle("active", tr.firstChild && tr.firstChild.textContent === hist.time);
+    });
+  }
+}
+
+/** Vaihtaa teemaa, tallentaa valinnan ja piirtää kaaviot uusilla väreillä. */
+async function toggleTheme() {
+  const next = isDark() ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem("theme", next); } catch { /* esim. privaattitila -> ei tallenneta */ }
+  updateThemeButton();
+  applyChartTheme();
+  await rerenderCharts();
+}
+
+$("themeToggle").addEventListener("click", toggleTheme);
+updateThemeButton();
+applyChartTheme(); // ennen ensimmäistä kaaviota, jotta akselivärit ovat heti oikein
 
 detectMode()
   .then(initRoutes)

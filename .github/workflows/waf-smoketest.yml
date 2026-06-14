@@ -1,0 +1,60 @@
+name: waf-smoketest
+
+# Kertaluontoinen savutesti: varmistaa että VR:n hintahaku toimii GitHub Actionsin
+# konesali-IP:stä (AWS WAF ei estä). Ajaa vain yhden reitin muutamalle päivälle.
+# Käynnistä käsin: Actions-välilehti -> waf-smoketest -> Run workflow,
+# tai: gh workflow run waf-smoketest.yml
+#
+# Tulkinta: jos lokin lopussa "Tuoreimmat hinnat HKI -> TPE:" + hintarivejä -> IP toimii.
+# Jos vain "yritys epäonnistui" -varoituksia ja "Ei dataa" -> IP estetty.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoketest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Asenna riippuvuudet
+        run: npm ci
+
+      - name: Asenna Chromium + OS-riippuvuudet
+        run: npx playwright install --with-deps chromium
+
+      - name: Kirjoita yhden reitin testiconfig
+        run: |
+          cat > config.json <<'JSON'
+          {
+            "passengers": [{ "type": "ADULT" }],
+            "daysAhead": 3,
+            "freshnessHours": 0,
+            "bothDirections": false,
+            "routes": [{ "from": "HKI", "to": "TPE" }],
+            "rateLimit": {
+              "minDelayMs": 1500,
+              "maxDelayMs": 4000,
+              "longPauseEveryN": 75,
+              "longPauseMs": 30000,
+              "maxRetries": 3,
+              "retryBackoffMs": 15000
+            },
+            "browser": { "headless": true },
+            "server": { "port": 5173 }
+          }
+          JSON
+
+      - name: Alusta reitti (seed)
+        run: npm run seed
+
+      - name: Aja keräys
+        run: npm run scrape
+
+      - name: Raportti (näytä kerätyt hinnat)
+        run: npm run report -- HKI TPE

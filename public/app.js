@@ -628,12 +628,29 @@ function updateThemeButton() {
   btn.title = label;
 }
 
-/** Asettaa Chart.js:n globaalit oletusvärit teeman CSS-muuttujista (akselit, ruudukko, legenda).
- *  Resolvoituu piirrettäessä, joten olemassa olevat kaaviot päivittyvät update()-kutsulla. */
+/** Asettaa Chart.js:n globaalit oletusvärit teeman CSS-muuttujista. Vaikuttaa VASTA luotaviin
+ *  kaavioihin — olemassa olevien akseli-/ruudukkovärit on päivitettävä erikseen (applyAxisColors),
+ *  koska Chart.js lukee ne defaultsista vain luontihetkellä eikä update() pull­aa niitä uudelleen. */
 function applyChartTheme() {
   if (typeof Chart === "undefined") return;
   Chart.defaults.color = cssVar("--c-chart-text");
   Chart.defaults.borderColor = cssVar("--c-chart-grid");
+}
+
+/** Päivittää olemassa olevan kaavion akselien, ruudukon, otsikoiden ja selitteen värit teeman
+ *  mukaan. Pakollinen teemaa vaihdettaessa: nämä on bakettu scale-optioihin luontihetkellä,
+ *  joten pelkkä Chart.defaults-muutos + update() jättäisi ruudukon vanhan teeman väriin. */
+function applyAxisColors(chart) {
+  const grid = cssVar("--c-chart-grid");
+  const text = cssVar("--c-chart-text");
+  for (const ax of Object.values(chart.options.scales || {})) {
+    if (!ax) continue;
+    if (ax.grid) ax.grid.color = grid;
+    if (ax.ticks) ax.ticks.color = text;
+    if (ax.title) ax.title.color = text;
+  }
+  const legend = chart.options.plugins && chart.options.plugins.legend;
+  if (legend && legend.labels) legend.labels.color = text;
 }
 
 /** Päivittää kalenterikäyrän värit PAIKALLAAN (ei tuhoa/rakenna uudelleen -> ei välähdystä,
@@ -645,6 +662,7 @@ function recolorCalendar() {
   const [dMin, dAvg] = calendarChart.data.datasets;
   if (dMin) { dMin.borderColor = cMin; dMin.pointBackgroundColor = cMin; dMin.pointBorderColor = cMin; }
   if (dAvg) dAvg.borderColor = cAvg;
+  applyAxisColors(calendarChart);
   calendarChart.update();
 }
 
@@ -660,6 +678,7 @@ function recolorHistory() {
   ds.pointBackgroundColor = colors;
   ds.pointBorderColor = colors;
   ds.segment.borderColor = (ctx) => (isSold(rows[ctx.p1DataIndex]) ? SOLD : BOOKABLE);
+  applyAxisColors(historyChart);
   historyChart.update();
 }
 

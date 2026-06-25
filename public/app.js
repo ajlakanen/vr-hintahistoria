@@ -34,29 +34,17 @@ async function routeData(id) {
   return blob;
 }
 
-const yBoundsCache = new Map(); // route_id -> { min, max } | null
-
-/** Y-akselin rajat reitin KOKO datasta, jotta asteikko pysyy vakiona ikkunaa selatessa. */
-function computeYBounds(calendar) {
+/** Y-akselin rajat VAIN näkyvissä olevista hinnoista, jotta ikkunan ulkopuoliset (piilossa
+ *  olevat) hintapiikit eivät litistä näkyvää käyrää. Asteikko seuraa siis valittua aikaikkunaa. */
+function computeYBounds(rows) {
   let lo = Infinity, hi = -Infinity;
-  for (const d of calendar) {
+  for (const d of rows) {
     if (d.minPrice < lo) lo = d.minPrice;
     if (d.avgPrice > hi) hi = d.avgPrice; // ylin piirretty arvo on keskihintakäyrä
   }
   if (!isFinite(lo) || !isFinite(hi)) return null;
   const pad = Math.max(1, (hi - lo) * 0.05);
   return { min: Math.max(0, Math.floor(lo - pad)), max: Math.ceil(hi + pad) };
-}
-
-/** Reittikohtaiset y-akselin rajat (välimuistitettu); toimii staattisessa ja API-moodissa. */
-async function routeYBounds(routeId) {
-  if (yBoundsCache.has(routeId)) return yBoundsCache.get(routeId);
-  const calendar = STATIC
-    ? (await routeData(routeId)).calendar
-    : await json(`/api/calendar?route_id=${routeId}&start=2000-01-01&end=2100-12-31`);
-  const bounds = computeYBounds(calendar);
-  yBoundsCache.set(routeId, bounds);
-  return bounds;
 }
 
 // Päivämäärä ilman aikavyöhykesiirtymää (vältetään off-by-one viikonloppupäivissä).
@@ -317,8 +305,8 @@ async function loadCalendar() {
     );
   }
 
-  // Kiinteät y-akselin rajat reitin koko datasta -> asteikko ei hyppi ikkunaa selatessa.
-  const yBounds = await routeYBounds(currentRouteId);
+  // Y-akselin rajat VAIN näkyvistä hinnoista -> ikkunan ulkopuoliset piikit eivät litistä käyrää.
+  const yBounds = computeYBounds(data);
 
   const labels = data.map((d) => d.date);
   const mins = data.map((d) => d.minPrice);

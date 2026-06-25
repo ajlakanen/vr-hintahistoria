@@ -14,6 +14,20 @@ let manifest = null;
 const routeCache = new Map(); // route_id -> esiladattu blob
 const routesById = new Map(); // route_id -> { from, to, fromName, toName }
 
+// Polkuun sidottu localStorage. localStorage on origin-kohtainen, ei polkukohtainen,
+// joten saman github.io-originin eri projektisivut jakaisivat samat avaimet. Etuliite
+// sisältää sivun polun, jolloin arvot eristyvät tähän sovellukseen. try/catch suojaa
+// privaattitilalta yms. (sama tyyli kuin aiemmin teemalla). HUOM: index.html:n inline-
+// FOUC-skripti rakentaa saman avaimen ("vrhh:" + pathname + ":theme") käsin -> jos
+// muutat etuliitettä, päivitä myös se.
+const STORE_PREFIX = `vrhh:${location.pathname}:`;
+function storeGet(key) {
+  try { return localStorage.getItem(STORE_PREFIX + key); } catch { return null; }
+}
+function storeSet(key, value) {
+  try { localStorage.setItem(STORE_PREFIX + key, value); } catch { /* esim. privaattitila -> ei tallenneta */ }
+}
+
 async function detectMode() {
   try {
     const res = await fetch("data/manifest.json", { cache: "no-cache" });
@@ -271,6 +285,13 @@ async function initRoutes() {
     const to = r.toName || r.to;
     opt.textContent = `${from} → ${to}  (${r.from}–${r.to})`;
     sel.appendChild(opt);
+  }
+  // Palauta edellisellä kerralla valittu reitti, jos se on yhä seurannassa. Näin refresh
+  // ei pudota valintaa takaisin ensimmäiseen reittiin. Aikaväliä EI palauteta tahallaan:
+  // tilannetta katsotaan aina nykyhetkestä eteenpäin.
+  const savedRoute = storeGet("route");
+  if (savedRoute && routesById.has(Number(savedRoute))) {
+    sel.value = savedRoute;
   }
   // Oletusaikaväli: tästä päivästä eteenpäin (inklusiivinen ikkuna). Kapealla näytöllä
   // lyhyempi (21 pv), jotta käyrä pysyy luettavana ja päiviin osuu sormella; työpöydällä 60 pv.
@@ -556,7 +577,10 @@ async function loadHistory(travelDate, time) {
 
 // Päivitä graafi heti kun reitti tai aikaväli muuttuu (ei tarvita Hae-painiketta).
 $("load").addEventListener("click", loadCalendar);
-$("route").addEventListener("change", loadCalendar);
+$("route").addEventListener("change", () => {
+  storeSet("route", $("route").value); // säilytä valinta refreshin yli
+  loadCalendar();
+});
 $("start").addEventListener("change", loadCalendar);
 $("end").addEventListener("change", loadCalendar);
 
@@ -697,7 +721,7 @@ function applyTheme(theme, animate) {
 /** Vaihtaa teemaa napista, tallentaa valinnan ja häivyttää vaihdoksen pehmeästi. */
 function toggleTheme() {
   const next = isDark() ? "light" : "dark";
-  try { localStorage.setItem("theme", next); } catch { /* esim. privaattitila -> ei tallenneta */ }
+  storeSet("theme", next);
   applyTheme(next, true);
 }
 
@@ -706,8 +730,7 @@ $("themeToggle").addEventListener("click", toggleTheme);
 // Jos käyttäjä ei ole valinnut teemaa itse (ei tallennettua valintaa), seuraa
 // käyttöjärjestelmän vaalea/tumma-tilaa myös sivun ollessa auki.
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-  let chosen = null;
-  try { chosen = localStorage.getItem("theme"); } catch { /* ei pääsyä -> kohdellaan valitsemattomana */ }
+  const chosen = storeGet("theme");
   if (chosen) return;
   applyTheme(e.matches ? "dark" : "light", true);
 });

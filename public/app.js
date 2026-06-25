@@ -129,6 +129,28 @@ const dayMarker = {
   },
 };
 
+// Chart.js-plugin: pelkkä kursorin kohdalla oleva himmeä katkoviiva (ilman valittua
+// päivää) — käytetään booking-käyrässä, jossa ei ole "valittua" saraketta kuten pääkäyrässä.
+const hoverMarker = {
+  id: "hoverMarker",
+  afterDraw(chart) {
+    const area = chart.chartArea;
+    if (!area) return;
+    const active = chart.getActiveElements();
+    if (!active.length) return;
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.strokeStyle = cssVar("--c-chart-marker");
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(active[0].element.x, area.top);
+    ctx.lineTo(active[0].element.x, area.bottom);
+    ctx.stroke();
+    ctx.restore();
+  },
+};
+
 // Chart.js-plugin: "Ei tietoja" keskelle, jos valitulla välillä ei ole yhtään pistettä
 // (esim. selattaessa aikaikkunaa kohtaan, jolta hintoja ei ole kerätty).
 const noData = {
@@ -559,6 +581,9 @@ async function loadHistory(travelDate, time) {
     options: {
       responsive: true,
       maintainAspectRatio: false, // korkeus tulee .chart-box-laatikosta
+      // Sama kuin pääkäyrässä: korosta lähin sarake x-akselin perusteella, jotta
+      // hover-katkoviiva seuraa kursoria eikä vaadi osumaa pisteeseen.
+      interaction: { mode: "index", intersect: false, axis: "x" },
       plugins: {
         legend: { position: "bottom" },
         tooltip: {
@@ -572,6 +597,7 @@ async function loadHistory(travelDate, time) {
         y: { title: { display: true, text: "€" } },
       },
     },
+    plugins: [hoverMarker],
   });
 }
 

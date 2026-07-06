@@ -66,15 +66,15 @@ function apiDepartures(routeId: number, travelDate: string) {
 
 /** Booking-käyrä: miten yhden lähdön hinta on kehittynyt ajopäivittäin. Kanta tallentaa vain
  *  muutoskohdat (segmentit); laajennetaan takaisin päiväkohtaiseksi sarjaksi näyttöä varten. */
-function apiHistory(routeId: number, travelDate: string, departureTime: string) {
+function apiHistory(routeId: number, travelDate: string, departureTime: string, trainNumber: string) {
   const segments = getDb()
     .prepare(
       `SELECT scrape_date AS scrapeDate, last_scrape_date AS lastScrapeDate, price, currency, available
        FROM price_history
-       WHERE route_id = ? AND travel_date = ? AND departure_time = ?
+       WHERE route_id = ? AND travel_date = ? AND departure_time = ? AND COALESCE(train_number,'') = ?
        ORDER BY scrape_date`
     )
-    .all(routeId, travelDate, departureTime) as unknown as HistorySegment[];
+    .all(routeId, travelDate, departureTime, trainNumber) as unknown as HistorySegment[];
   return expandHistorySegments(segments);
 }
 
@@ -129,9 +129,10 @@ const server = createServer(async (req, res) => {
       const routeId = Number(q.get("route_id"));
       const date = q.get("travel_date") ?? "";
       const time = q.get("departure_time") ?? "";
+      const train = q.get("train_number") ?? "";
       if (!routeId || !date || !time)
         return sendJson(res, 400, { error: "route_id, travel_date, departure_time vaaditaan" });
-      return sendJson(res, 200, apiHistory(routeId, date, time));
+      return sendJson(res, 200, apiHistory(routeId, date, time, train));
     }
 
     if (url.pathname.startsWith("/api/")) return sendJson(res, 404, { error: "tuntematon rajapinta" });

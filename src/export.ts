@@ -28,6 +28,7 @@ interface DepRow {
 interface HistRow {
   travel_date: string;
   departure_time: string;
+  train_number: string | null;
   scrapeDate: string;
   lastScrapeDate: string | null;
   price: number;
@@ -72,7 +73,7 @@ function main(): void {
   );
   const histStmt = db.prepare(
     // Segmentit (store-on-change); laajennetaan päiväkohtaisiksi pisteiksi alla.
-    `SELECT travel_date, departure_time, scrape_date AS scrapeDate, last_scrape_date AS lastScrapeDate,
+    `SELECT travel_date, departure_time, train_number, scrape_date AS scrapeDate, last_scrape_date AS lastScrapeDate,
             price, currency, available
      FROM price_history WHERE route_id = ? ORDER BY travel_date, departure_time, scrape_date`
   );
@@ -98,7 +99,8 @@ function main(): void {
       { scrapeDate: string; price: number; currency: string; available: number }[]
     > = {};
     for (const h of histStmt.all(r.id) as unknown as HistRow[]) {
-      const key = `${h.travel_date}|${h.departure_time}`;
+      const tn = h.train_number ?? "";
+      const key = `${h.travel_date}|${h.departure_time}|${tn}`;
       // Laajenna segmentti [scrapeDate, lastScrapeDate] takaisin päiväkohtaisiksi pisteiksi.
       (history[key] ??= []).push(
         ...expandHistorySegments([

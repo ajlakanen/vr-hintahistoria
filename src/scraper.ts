@@ -281,7 +281,12 @@ function parseOption(o: unknown): JourneyPrice | null {
   const cents = typeof opt.totalPrice === "number" ? opt.totalPrice : null;
   if (cents === null || cents <= 0 || !departureAt) return null;
 
-  const firstLeg = Array.isArray(opt.legs) && opt.legs.length > 0 ? opt.legs[0] : null;
+  const trainNumber = Array.isArray(opt.legs) 
+    ? opt.legs.map((l: any) => l.trainNumber != null ? String(l.trainNumber) : "").filter(Boolean).join(",") 
+    : null;
+  const trainType = Array.isArray(opt.legs)
+    ? opt.legs.map((l: any) => l.trainType != null ? String(l.trainType) : "").filter(Boolean).join(",")
+    : null;
 
   // HUOM: availability.seatAvailability="NOT_BOOKABLE" tarkoittaa vain ettei lähtöön voi
   // tehdä PAIKANVARAUSTA (esim. lähijunat, trainType "LOL") — lipun voi silti ostaa. Se ei
@@ -292,8 +297,8 @@ function parseOption(o: unknown): JourneyPrice | null {
     travelDate: departureAt.slice(0, 10),
     departureTime: departureAt.slice(11, 16),
     departureAt,
-    trainNumber: firstLeg?.trainNumber != null ? String(firstLeg.trainNumber) : null,
-    trainType: firstLeg?.trainType ?? null,
+    trainNumber: trainNumber || null,
+    trainType: trainType || null,
     price: Math.round(cents) / 100, // sentit -> eurot
     currency: "EUR",
   };

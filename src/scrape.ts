@@ -26,10 +26,13 @@ async function main(): Promise<void> {
   const scrapeDate = dateStr(0);
   const dates = Array.from({ length: cfg.daysAhead }, (_, i) => dateStr(i));
   const total = routes.length * dates.length;
-  const freshnessMs = cfg.freshnessHours * 3_600_000;
+  
+  const force = process.argv.includes("--fresh");
+  const freshnessMs = force ? 0 : cfg.freshnessHours * 3_600_000;
+  
   log.info(
     `Aloitetaan keräys: ${routes.length} reittiä × ${dates.length} päivää = ${total} hakua. Ajopäivä ${scrapeDate}.` +
-      (freshnessMs > 0 ? ` Ohitetaan alle ${cfg.freshnessHours} h vanhat haut (jatka kesken jäänyt ajo).` : "")
+      (freshnessMs > 0 ? ` Ohitetaan alle ${cfg.freshnessHours} h vanhat haut (jatka kesken jäänyt ajo).` : force ? " (--fresh ohitti freshness-tarkistuksen)." : "")
   );
 
   const limiter = new RateLimiter(cfg.rateLimit);

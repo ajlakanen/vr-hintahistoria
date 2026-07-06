@@ -531,22 +531,22 @@ async function loadDepartures(travelDate) {
     tr.onclick = () => {
       tbody.querySelectorAll("tr").forEach((x) => x.classList.remove("active"));
       tr.classList.add("active");
-      loadHistory(travelDate, r.time);
+      loadHistory(travelDate, r.time, r.train);
     };
     tbody.appendChild(tr);
   }
 }
 
-async function loadHistory(travelDate, time) {
+async function loadHistory(travelDate, time, train) {
   $("histHint").hidden = true;
-  $("histTitle").textContent = `Hintakehitys — ${fmtFiDate(travelDate)} klo ${time}`;
+  $("histTitle").textContent = `Hintakehitys — ${fmtFiDate(travelDate)} klo ${time} (Juna: ${train || "-"})`;
   let rows;
   if (STATIC) {
     const blob = await routeData(currentRouteId);
-    rows = blob.history[`${travelDate}|${time}`] || [];
+    rows = blob.history[`${travelDate}|${time}|${train || ""}`] || [];
   } else {
     rows = await json(
-      `/api/history?route_id=${currentRouteId}&travel_date=${travelDate}&departure_time=${encodeURIComponent(time)}`
+      `/api/history?route_id=${currentRouteId}&travel_date=${travelDate}&departure_time=${encodeURIComponent(time)}&train_number=${encodeURIComponent(train || "")}`
     );
   }
   lastHistoryRows = rows; // talteen, jotta teeman vaihto voi värittää käyrän paikallaan

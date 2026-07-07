@@ -524,7 +524,8 @@ async function loadDepartures(travelDate) {
       soldOut || !route
         ? ""
         : `<a class="buy-link" href="${vrBuyUrl(route.from, route.to, travelDate)}" target="_blank" rel="noopener" title="Avaa VR.fi:n haku tälle reitille ja päivälle">Osta&nbsp;↗</a>`;
-    tr.innerHTML = `<td>${r.time}</td><td>${r.train || ""}</td><td>${priceCell}</td><td class="buy-cell">${buyCell}</td>`;
+    const displayTrain = r.train ? r.train.replace(/->/g, " → ") : "";
+    tr.innerHTML = `<td>${r.time}</td><td>${displayTrain}</td><td>${priceCell}</td><td class="buy-cell">${buyCell}</td>`;
     // Ostolinkin klikkaus ei saa myös valita riviä (hintakäyrää).
     const buyLink = tr.querySelector(".buy-link");
     if (buyLink) buyLink.addEventListener("click", (e) => e.stopPropagation());
@@ -539,7 +540,8 @@ async function loadDepartures(travelDate) {
 
 async function loadHistory(travelDate, time, train) {
   $("histHint").hidden = true;
-  $("histTitle").textContent = `Hintakehitys — ${fmtFiDate(travelDate)} klo ${time} (Juna: ${train || "-"})`;
+  const displayTrain = train ? train.replace(/->/g, " → ") : "-";
+  $("histTitle").textContent = `Hintakehitys — ${fmtFiDate(travelDate)} klo ${time} (Juna: ${displayTrain})`;
   let rows;
   if (STATIC) {
     const blob = await routeData(currentRouteId);

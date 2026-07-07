@@ -282,10 +282,10 @@ function parseOption(o: unknown): JourneyPrice | null {
   if (cents === null || cents <= 0 || !departureAt) return null;
 
   const trainNumber = Array.isArray(opt.legs) 
-    ? opt.legs.map((l: any) => l.trainNumber != null ? String(l.trainNumber) : "").filter(Boolean).join(",") 
+    ? opt.legs.map((l: any) => l.trainNumber != null ? String(l.trainNumber) : "").filter(Boolean).join("->") 
     : null;
   const trainType = Array.isArray(opt.legs)
-    ? opt.legs.map((l: any) => l.trainType != null ? String(l.trainType) : "").filter(Boolean).join(",")
+    ? opt.legs.map((l: any) => l.trainType != null ? String(l.trainType) : "").filter(Boolean).join("->")
     : null;
 
   // HUOM: availability.seatAvailability="NOT_BOOKABLE" tarkoittaa vain ettei lähtöön voi

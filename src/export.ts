@@ -79,6 +79,14 @@ function main(): void {
   );
 
   let bytes = 0;
+  const manifestRoutes: {
+    id: number;
+    from: string;
+    to: string;
+    fromName: string | null;
+    toName: string | null;
+    earliestDate: string | null;
+  }[] = [];
   for (const r of routes) {
     const calendar = calStmt.all(r.id);
 
@@ -124,17 +132,19 @@ function main(): void {
     const json = JSON.stringify(blob);
     bytes += json.length;
     writeFileSync(join(DATA_DIR, `route-${r.id}.json`), json);
-  }
-
-  const manifest = {
-    generatedAt: new Date().toISOString(),
-    routes: routes.map((r) => ({
+    manifestRoutes.push({
       id: r.id,
       from: r.from_code,
       to: r.to_code,
       fromName: r.from_name,
       toName: r.to_name,
-    })),
+      earliestDate: (calendar[0] as { date?: string } | undefined)?.date ?? null,
+    });
+  }
+
+  const manifest = {
+    generatedAt: new Date().toISOString(),
+    routes: manifestRoutes,
   };
   writeFileSync(join(DATA_DIR, "manifest.json"), JSON.stringify(manifest));
 

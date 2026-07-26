@@ -186,6 +186,10 @@ function isoDate(d) {
   return d.toISOString().slice(0, 10);
 }
 
+function todayIso() {
+  return isoDate(new Date());
+}
+
 /** Lisää n päivää ISO-päivään (YYYY-MM-DD) paikallisaika huomioiden. */
 function addDaysIso(iso, n) {
   const d = new Date(iso + "T00:00:00");
@@ -214,15 +218,34 @@ function setRange(s, e) {
 function shiftRange(dir) {
   const days = rangeDays();
   if (!days) return;
-  setRange(addDaysIso($("start").value, days * dir), addDaysIso($("end").value, days * dir));
+  const start = $("start").value;
+  const end = $("end").value;
+  if (dir < 0) {
+   const floor = rangeFloorDate();
+   const nextStart = addDaysIso(start, -days);
+   if (nextStart <= floor) {
+     return setRange(floor, addDaysIso(floor, days - 1));
+   }
+  }
+  setRange(addDaysIso(start, days * dir), addDaysIso(end, days * dir));
+}
+
+function rangeFloorDate() {
+  const routeEarliest = routesById.get(Number($("route").value))?.earliestDate;
+  const today = todayIso();
+  if (!routeEarliest) return today;
+  return routeEarliest > today ? routeEarliest : today;
 }
 
 /** Päivittää selausnappien tekstit ikkunan pituuden mukaan. */
 function updateRangeNav() {
   const days = rangeDays();
   if (!days) return;
-  $("rangePrev").textContent = `← Edelliset ${days} päivää`;
-  $("rangeNext").textContent = `Seuraavat ${days} päivää →`;
+  const prev = $("rangePrev");
+  const next = $("rangeNext");
+  prev.textContent = `← Edelliset ${days} päivää`;
+  next.textContent = `Seuraavat ${days} päivää →`;
+  prev.disabled = $("start").value <= rangeFloorDate();
 }
 
 // ---------- Suomalaismuotoinen päivämääräkenttä (pp.kk.vvvv) ----------

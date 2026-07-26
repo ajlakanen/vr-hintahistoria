@@ -5,7 +5,7 @@ Keräys ja julkaisu pyörivät GitHub Actionsissa — ei omaa palvelinta.
 ## Miten se toimii
 
 - **`.github/workflows/scrape.yml`** ajaa keräyksen joka yö (cron `30 1 * * *` UTC, ~04:30 Suomen aikaa).
-  Putki: nouda kanta `data`-haarasta → `scrape` → WAL-checkpoint → `export` → työnnä kanta takaisin → `deploy` (gh-pages).
+  Putki: nouda kanta `data`-haarasta → `scrape` (siivoaa menneet travel_date-rivit) → checkpoint+VACUUM → `export` → työnnä kanta takaisin → `deploy` (gh-pages).
 - **Tila:** `prices.db` pakataan tiedostoksi `prices.db.gz`, joka elää `data`-haarassa (force-push, yksi commit). Sivu julkaistaan `gh-pages`-haaraan.
 - Repo on julkinen → Actions-minuutit ilmaisia.
 

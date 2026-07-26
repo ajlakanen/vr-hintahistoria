@@ -86,9 +86,12 @@ jobs:
       - name: Aja keräys
         run: npm run scrape
 
-      - name: WAL-checkpoint (kirjoita muutokset prices.db:hen)
+      - name: Optimoi tietokanta (checkpoint + VACUUM)
         run: |
-          node --input-type=module -e "import {DatabaseSync} from 'node:sqlite'; const d=new DatabaseSync('data/prices.db'); d.exec('PRAGMA wal_checkpoint(TRUNCATE)'); d.close();"
+          before=$(du -h data/prices.db | cut -f1)
+          node --input-type=module -e "import {DatabaseSync} from 'node:sqlite'; const d=new DatabaseSync('data/prices.db'); d.exec('PRAGMA wal_checkpoint(TRUNCATE); VACUUM; PRAGMA optimize;'); d.close();"
+          after=$(du -h data/prices.db | cut -f1)
+          echo "Kanta optimoitu: ${before} -> ${after}"
 
       - name: Esirenderöi staattinen sivu (export)
         run: npm run export

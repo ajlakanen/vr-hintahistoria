@@ -1,5 +1,11 @@
 import { loadConfig } from "./config.ts";
-import { getActiveRoutes, recordPrice, lastScrapedAt, markDeparturesSoldOut } from "./db.ts";
+import {
+  getActiveRoutes,
+  recordPrice,
+  lastScrapedAt,
+  markDeparturesSoldOut,
+  pruneTravelDatesBefore,
+} from "./db.ts";
 import { VrScraper } from "./scraper.ts";
 import { RateLimiter, sleep } from "./rateLimiter.ts";
 import { log } from "./logger.ts";
@@ -26,6 +32,13 @@ async function main(): Promise<void> {
   const scrapeDate = dateStr(0);
   const dates = Array.from({ length: cfg.daysAhead }, (_, i) => dateStr(i));
   const total = routes.length * dates.length;
+
+  const pruned = pruneTravelDatesBefore(scrapeDate);
+  if (pruned.pricesDeleted > 0 || pruned.historyDeleted > 0) {
+    log.info(
+      `Siivous: poistettiin menneitä rivejä (prices=${pruned.pricesDeleted}, price_history=${pruned.historyDeleted}).`
+    );
+  }
   
   const force = process.argv.includes("--fresh");
   const freshnessMs = force ? 0 : cfg.freshnessHours * 3_600_000;

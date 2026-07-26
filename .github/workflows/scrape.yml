@@ -2,9 +2,10 @@ name: scrape
 
 # Päivittäinen hintojen keräys GitHub Actionsissa.
 #
-# Tila (SQLite-kanta) säilytetään omassa 'data'-haarassa: se noudetaan ajon alussa,
-# päivitetään keräyksessä ja työnnetään takaisin yhdellä force-push-commitilla (ei
-# historian kertymää). Valmis staattinen sivu julkaistaan 'gh-pages'-haaraan.
+# Tila (SQLite-kanta) säilytetään omassa 'data'-haarassa pakattuna (`prices.db.gz`):
+# se noudetaan ajon alussa, puretaan, päivitetään keräyksessä ja työnnetään takaisin
+# yhdellä force-push-commitilla (ei historian kertymää). Valmis staattinen sivu
+# julkaistaan 'gh-pages'-haaraan.
 #
 # Käsiajo testiksi (kevyt, validoi koko putken):
 #   gh workflow run scrape.yml -f daysAhead=2
@@ -56,8 +57,17 @@ jobs:
         run: |
           mkdir -p data
           if git fetch origin data --depth=1 2>/dev/null; then
-            git show FETCH_HEAD:prices.db > data/prices.db
-            echo "Kanta noudettu data-haarasta ($(du -h data/prices.db | cut -f1))."
+            if git cat-file -e FETCH_HEAD:prices.db.gz 2>/dev/null; then
+              git show FETCH_HEAD:prices.db.gz > data/prices.db.gz
+              gzip -dc data/prices.db.gz > data/prices.db
+              rm -f data/prices.db.gz
+              echo "Pakattu kanta noudettu data-haarasta ($(du -h data/prices.db | cut -f1) purettuna)."
+            elif git cat-file -e FETCH_HEAD:prices.db 2>/dev/null; then
+              git show FETCH_HEAD:prices.db > data/prices.db
+              echo "Kanta noudettu data-haarasta vanhassa muodossa ($(du -h data/prices.db | cut -f1))."
+            else
+              echo "Data-haara löytyi, mutta kantatiedostoa ei löytynyt — aloitetaan tyhjästä."
+            fi
           else
             echo "Ei data-haaraa vielä — ensimmäinen ajo, aloitetaan tyhjästä."
           fi
@@ -76,9 +86,12 @@ jobs:
       - name: Aja keräys
         run: npm run scrape
 
-      - name: WAL-checkpoint (kirjoita muutokset prices.db:hen)
+      - name: Optimoi tietokanta (checkpoint + VACUUM)
         run: |
-          node --input-type=module -e "import {DatabaseSync} from 'node:sqlite'; const d=new DatabaseSync('data/prices.db'); d.exec('PRAGMA wal_checkpoint(TRUNCATE)'); d.close();"
+          before=$(du -h data/prices.db | cut -f1)
+          node --input-type=module -e "import {DatabaseSync} from 'node:sqlite'; const d=new DatabaseSync('data/prices.db'); d.exec('PRAGMA wal_checkpoint(TRUNCATE); VACUUM; PRAGMA optimize;'); d.close();"
+          after=$(du -h data/prices.db | cut -f1)
+          echo "Kanta optimoitu: ${before} -> ${after}"
 
       - name: Esirenderöi staattinen sivu (export)
         run: npm run export
@@ -88,15 +101,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tmp=$(mktemp -d)
-          cp data/prices.db "$tmp/prices.db"
+          gzip -c data/prices.db > "$tmp/prices.db.gz"
           cd "$tmp"
           git init -q
           git checkout -q -b data
-          git add prices.db
+          git add prices.db.gz
           git -c user.email=actions@github.com -c user.name="github-actions[bot]" \
             commit -qm "DB update (run ${GITHUB_RUN_ID})"
           git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
-          echo "Kanta työnnetty data-haaraan."
+          echo "Pakattu kanta työnnetty data-haaraan."
 
       - name: Julkaise sivu (gh-pages)
         env:

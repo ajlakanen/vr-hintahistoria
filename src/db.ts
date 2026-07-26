@@ -145,6 +145,27 @@ export function lastScrapedAt(routeId: number, travelDate: string): string | nul
 }
 
 /**
+ * Poistaa menneiden päivien hinnat/hintahistorian, jotta kanta ei kasva rajatta.
+ * cutoffDate pidetään mukana (eli poistetaan vain travel_date < cutoffDate).
+ */
+export function pruneTravelDatesBefore(cutoffDate: string): {
+  pricesDeleted: number;
+  historyDeleted: number;
+} {
+  const d = getDb();
+  const historyRes = d.prepare(`DELETE FROM price_history WHERE travel_date < ?`).run(cutoffDate) as {
+    changes?: number;
+  };
+  const pricesRes = d.prepare(`DELETE FROM prices WHERE travel_date < ?`).run(cutoffDate) as {
+    changes?: number;
+  };
+  return {
+    pricesDeleted: pricesRes.changes ?? 0,
+    historyDeleted: historyRes.changes ?? 0,
+  };
+}
+
+/**
  * Kirjaa yhden booking-käyrän pisteen "store-on-change"-periaatteella: jos lähdön hinta ja
  * saatavuus ovat samat kuin sen viimeisimmässä segmentissä, vain pidennetään segmenttiä
  * (last_scrape_date -> scrapeDate) eikä lisätä uutta riviä. Muutoksella (tai ensihavainnolla)

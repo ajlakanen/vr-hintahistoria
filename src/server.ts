@@ -23,12 +23,18 @@ function sendJson(res: import("node:http").ServerResponse, status: number, data:
 // ---------- API-kyselyt ----------
 
 function apiRoutes() {
+  const earliestStmt = getDb().prepare(
+    `SELECT MIN(travel_date) AS earliestDate
+     FROM prices
+     WHERE route_id = ? AND available = 1`
+  );
   return getActiveRoutes().map((r) => ({
     id: r.id,
     from: r.from_code,
     to: r.to_code,
     fromName: r.from_name,
     toName: r.to_name,
+    earliestDate: (earliestStmt.get(r.id) as { earliestDate: string | null } | undefined)?.earliestDate ?? null,
   }));
 }
 

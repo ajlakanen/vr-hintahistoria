@@ -475,6 +475,18 @@ function renderDay() {
   renderHistory(deps.find((d) => d[0] + "|" + d[1] === state.dep));
 }
 
+/** Valinnan vaihto ei saa piirtää listaa uudelleen: innerHTML nollaisi
+    vierityksen ja pitkä lista hyppäisi takaisin alkuun. Siirretään siis vain
+    korostus ja päivitetään käyrä. */
+function selectDep(key) {
+  if (state.dep === key) return;
+  state.dep = key;
+  for (const tr of $("depBody").querySelectorAll("[data-dep]")) {
+    tr.classList.toggle("sel", tr.dataset.dep === key);
+  }
+  renderHistory(depsFor(state.date).find((d) => d[0] + "|" + d[1] === key));
+}
+
 /* ---------- hintakehitys (booking-käyrä) ---------- */
 
 /**
@@ -857,8 +869,7 @@ $("cal").addEventListener("pointerleave", () => calTip.classList.remove("on"));
 $("depBody").addEventListener("click", (e) => {
   const row = e.target.closest("[data-dep]");
   if (!row) return;
-  state.dep = row.dataset.dep;
-  renderDay();
+  selectDep(row.dataset.dep);
 });
 
 /* ---------- teema ---------- */

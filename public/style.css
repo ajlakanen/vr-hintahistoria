@@ -52,6 +52,9 @@
   --r-lg: 16px;
   --r-pill: 999px;
 
+  /* Sisäisten vierityspalkkien leveys — sama arvo varaa kaistan ja piirtää palkin. */
+  --sbw: 10px;
+
   --page: 1240px;
   --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --display: "Archivo", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
@@ -815,11 +818,12 @@ a {
   position: relative;
 }
 
-/* Häivytys kertoo, että listaa on lisää alaspäin — vain kun lista todella jatkuu. */
+/* Häivytys kertoo, että listaa on lisää alaspäin — vain kun lista todella jatkuu.
+   Oikea reuna jätetään vierityskaistan verran vapaaksi, ettei häivytys peitä palkkia. */
 .deplist-wrap.more::after {
   content: "";
   position: absolute;
-  inset: auto 0 0 0;
+  inset: auto var(--sbw) 0 0;
   height: 30px;
   background: linear-gradient(to top, var(--surface), transparent);
   pointer-events: none;
@@ -829,8 +833,19 @@ a {
   max-height: min(46vh, 420px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
   padding-bottom: 16px;
+  /* Windowsin oletuspalkki on leveä ja piirtyy nykyselaimissa sisällön päälle
+     (overlay), jolloin se peittää hintasarakkeen. Oma väri pakottaa palkin
+     tavalliseksi eli omaan kaistaansa, ja `stable` varaa kaistan myös silloin kun
+     lista mahtuu kokonaan — muuten leveys nykisi päivää vaihdettaessa. */
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* Osoitin listan päällä → palkki tummenee sen verran että sen huomaa. */
+.deplist:hover {
+  scrollbar-color: var(--muted) transparent;
 }
 
 table.dep {

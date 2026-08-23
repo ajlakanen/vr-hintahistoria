@@ -533,10 +533,13 @@ a {
 
 /* --- Työtila ------------------------------------------------------------ */
 
+/* Kalenteri saa korkeintaan puolet leveydestä. Ruudukko tiivistyy hyvin, mutta
+   lähtölista ei: pitkät junatunnukset ("IC → IC 155 → 66") rivittyvät kapeassa
+   sarakkeessa, joten tila kannattaa antaa sille. */
 .workspace {
   margin-top: var(--s5);
   display: grid;
-  grid-template-columns: minmax(0, 1.42fr) minmax(330px, 0.85fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--s5);
   align-items: start;
 }
@@ -568,6 +571,24 @@ a {
 
 .panel .body {
   padding: 0 var(--s4) var(--s4);
+}
+
+/* Aktiivinen aikaikkuna otsikon perässä: kalenterin luvut koskevat vain tätä
+   väliä, joten sen on näyttävä siinä missä lukujakin katsotaan. Tyhjä (= koko
+   vuorokausi) piiloutuu. */
+.panel h2 .hwin {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-stretch: 100%;
+  letter-spacing: 0;
+  color: var(--accent-text);
+  margin-left: var(--s1);
+}
+
+.panel h2 .hwin:empty {
+  display: none;
 }
 
 /* Kuukausinavigointi */
@@ -649,8 +670,8 @@ a {
   flex-direction: column;
   align-items: stretch;
   gap: 0;
-  min-height: 74px;
-  padding: 6px 7px 10px;
+  min-height: 60px;
+  padding: 5px 6px 9px;
   border: 1px solid var(--border-soft);
   border-radius: var(--r-sm);
   background: var(--surface-2);
@@ -674,9 +695,9 @@ a {
   margin-top: auto;
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
-  font-size: 0.94rem;
+  font-size: 0.84rem;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
   line-height: 1.1;
 }
 

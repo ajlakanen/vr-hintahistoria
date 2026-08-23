@@ -732,6 +732,8 @@ function syncFilterUi() {
   $("h0").value = String(state.h0);
   $("h1").value = String(state.h1);
   const all = state.h0 === 0 && state.h1 === 24;
+  const hh = (h) => String(h).padStart(2, "0") + ":00";
+  $("calWindow").textContent = all ? "" : `${hh(state.h0)}–${hh(state.h1)}`;
   for (const b of $("presets").querySelectorAll("[data-h]")) {
     b.classList.toggle("on", b.dataset.h === `${state.h0}-${state.h1}`);
   }

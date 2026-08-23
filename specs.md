@@ -48,7 +48,7 @@ Relaatiotietokanta (SQLite), jossa on kolme taulua:
 ## Käyttöliittymä
 
 Näkymä vastaa ensin kysymykseen "milloin kannattaa matkustaa": kuukausikalenterissa jokainen
-päivä näyttää sen päivän halvimman lähdön hintana, taustavärinä ja palkin pituutena. Päivän
+päivä näyttää sen päivän halvimman lähdön hintana ja taustavärinä. Päivän
 valinta avaa sivupaneeliin päivän lähdöt (oletuksena halvin ensin) ja valitun lähdön
 booking-käyrän.
 
@@ -67,7 +67,7 @@ Muutama toteutuksen kannalta olennainen valinta:
 - **Väriskaala** on vihreä → keltainen → punainen, mutta näkyvyys seuraa edullisuutta: halvin
   päivä on kylläinen vihreä laatta ja kallein sulautuu taustaan. Askelmat on laskettu
   OKLCh-avaruudessa niin, että kirkkaus muuttuu tasaisesti läpi skaalan — järjestys säilyy
-  siis myös punavihersokealle, ja hinta lukee lisäksi numerona ja palkin pituutena.
+  siis myös punavihersokealle, ja hinta lukee joka tapauksessa numerona jokaisessa ruudussa.
 - **Kaksi erillistä väriroolia.** Käyttöliittymän oma sävy on kylmä sininen (aksentti,
   valinnat, linkit, booking-käyrä) ja neutraalit on viritetty samaan suuntaan. Hintaskaalan
   vihreä–punainen on varattu pelkästään datalle. Sama jako pätee pieniin merkintöihin:

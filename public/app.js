@@ -333,9 +333,6 @@ function renderCalendar() {
       continue;
     }
     const bin = binOf(row[1], th);
-    // Palkki mittaa edullisuutta, ei hintaa: täysi leveys halvimpana päivänä,
-    // kutistuu olemattomiin kalleimpana. Näin pisin palkki on se, jonka haluat löytää.
-    const width = Math.max(5, Math.round((1 - (row[1] - minMin) / (maxMin - minMin || 1)) * 95 + 5));
     const sel = key === state.date ? " sel" : "";
     cells.push(`
       <button type="button" class="cell${we}${sel}" data-date="${key}"
@@ -344,7 +341,6 @@ function renderCalendar() {
         aria-label="${fmtDay(key)}, halvin ${eur(row[1])}, ${row[4]} lähtöä">
         <span class="d">${d}</span>
         <span class="p">${nf2.format(row[1])}</span>
-        <span class="bar" style="width:${width}%;background:var(--bar-${bin})"></span>
       </button>`);
   }
   $("cal").innerHTML = cells.join("");

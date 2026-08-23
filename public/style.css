@@ -21,19 +21,12 @@
 
   /* Hintaskaala vihreä → keltainen → punainen, jossa NÄKYVYYS seuraa edullisuutta:
      halvin on kylläinen laatta, kallein sulautuu pintaan. Askelmat on laskettu OKLCh:ssa
-     tasaisin kirkkausvälein, joten järjestys säilyy myös punavihersokealle.
-     cell = solun tausta (teksti päällä), bar = täysvahva palkki (grafiikka). */
+     tasaisin kirkkausvälein, joten järjestys säilyy myös punavihersokealle. */
   --cell-1: #a2e8b0;
   --cell-2: #d4e8a9;
   --cell-3: #f5e8ba;
   --cell-4: #ffecdd;
   --cell-5: #fff4f2;
-  --bar-1: #007835;
-  --bar-2: #5d7300;
-  --bar-3: #836d00;
-  --bar-4: #9a6839;
-  --bar-5: #9b6d65;
-
   --curve: #0077bc;
   --curve-fill: rgba(0, 119, 188, 0.13);
   --grid: #e5eaef;
@@ -82,11 +75,6 @@
     --cell-3: #322800;
     --cell-4: #2d1b0a;
     --cell-5: #1e1412;
-    --bar-1: #3fc168;
-    --bar-2: #8fac31;
-    --bar-3: #b09733;
-    --bar-4: #b6875e;
-    --bar-5: #a9817a;
     --curve: #65b2f1;
     --curve-fill: rgba(101, 178, 241, 0.14);
     --grid: #28313b;
@@ -112,11 +100,6 @@
   --cell-3: #322800;
   --cell-4: #2d1b0a;
   --cell-5: #1e1412;
-  --bar-1: #3fc168;
-  --bar-2: #8fac31;
-  --bar-3: #b09733;
-  --bar-4: #b6875e;
-  --bar-5: #a9817a;
   --curve: #65b2f1;
   --curve-fill: rgba(101, 178, 241, 0.14);
   --grid: #28313b;
@@ -659,8 +642,8 @@ a {
   flex-direction: column;
   align-items: stretch;
   gap: 0;
-  min-height: 60px;
-  padding: 5px 6px 9px;
+  min-height: 56px;
+  padding: 5px 6px 6px;
   border: 1px solid var(--border-soft);
   border-radius: var(--r-sm);
   background: var(--surface-2);
@@ -688,14 +671,6 @@ a {
   font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1.1;
-}
-
-.cell .bar {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 4px;
-  border-radius: 0 2px 2px 0;
 }
 
 /* Valinta sävyttömänä: vihreä ja punainen ovat hintaskaalan käytössä,
@@ -1136,8 +1111,8 @@ details.tableview th:last-child {
     flex-basis: 100%;
   }
   .cell {
-    min-height: 58px;
-    padding: 4px 4px 9px;
+    min-height: 54px;
+    padding: 4px 4px 5px;
   }
   .cell .p {
     font-size: 0.78rem;

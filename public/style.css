@@ -6,20 +6,22 @@
 :root {
   color-scheme: light;
 
-  --bg: #eff2ee;
+  --bg: #ebeff4;
   --surface: #ffffff;
-  --surface-2: #f7f9f6;
-  --ink: #16211c;
-  --muted: #5a6a61;
-  --border: #d9e0da;
-  --border-soft: #e4e9e4;
+  --surface-2: #f3f7fa;
+  --ink: #121e2b;
+  --muted: #576573;
+  --border: #d7dde4;
+  --border-soft: #e5eaef;
 
-  --accent: #00a149;
-  --accent-text: #007d36;
-  --accent-soft: #e8f6ed;
+  --accent: #0077bc;
+  --accent-text: #005f98;
+  --accent-soft: #e4f2ff;
   --danger: #b32918;
 
-  /* Hintaskaala: yksisävyinen sekventiaalinen ramppi (vaalea = halpa).
+  /* Hintaskaala vihreä → keltainen → punainen, jossa NÄKYVYYS seuraa edullisuutta:
+     halvin on kylläinen laatta, kallein sulautuu pintaan. Askelmat on laskettu OKLCh:ssa
+     tasaisin kirkkausvälein, joten järjestys säilyy myös punavihersokealle.
      cell = solun tausta (teksti päällä), bar = täysvahva palkki (grafiikka). */
   --cell-1: #a2e8b0;
   --cell-2: #d4e8a9;
@@ -32,10 +34,10 @@
   --bar-4: #9a6839;
   --bar-5: #9b6d65;
 
-  --curve: #1667a8;
-  --curve-fill: rgba(22, 103, 168, 0.13);
-  --grid: #e4e9e4;
-  --shadow: 0 1px 2px rgba(22, 33, 28, 0.05), 0 8px 24px -16px rgba(22, 33, 28, 0.3);
+  --curve: #0077bc;
+  --curve-fill: rgba(0, 119, 188, 0.13);
+  --grid: #e5eaef;
+  --shadow: 0 1px 2px rgba(18, 30, 43, 0.05), 0 8px 24px -16px rgba(18, 30, 43, 0.3);
 
   --s1: 0.25rem;
   --s2: 0.5rem;
@@ -61,60 +63,60 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #0c1310;
-    --surface: #141d18;
-    --surface-2: #19241e;
-    --ink: #e7efe9;
-    --muted: #93a79b;
-    --border: #253328;
-    --border-soft: #1f2b24;
-    --accent: #35c46f;
-    --accent-text: #35c46f;
-    --accent-soft: #12291c;
+    --bg: #080d12;
+    --surface: #11171d;
+    --surface-2: #181f26;
+    --ink: #e2e9f0;
+    --muted: #94a0ad;
+    --border: #28313b;
+    --border-soft: #1d252d;
+    --accent: #65b2f1;
+    --accent-text: #65b2f1;
+    --accent-soft: #08263d;
     --danger: #f2705c;
-    --cell-1: #0b4d23;
-    --cell-2: #2f3b02;
-    --cell-3: #352b00;
-    --cell-4: #2f1d0c;
-    --cell-5: #201513;
+    --cell-1: #074b20;
+    --cell-2: #2d3900;
+    --cell-3: #322800;
+    --cell-4: #2d1b0a;
+    --cell-5: #1e1412;
     --bar-1: #3fc168;
     --bar-2: #8fac31;
     --bar-3: #b09733;
     --bar-4: #b6875e;
     --bar-5: #a9817a;
-    --curve: #62b0e4;
-    --curve-fill: rgba(98, 176, 228, 0.14);
-    --grid: #26332c;
+    --curve: #65b2f1;
+    --curve-fill: rgba(101, 178, 241, 0.14);
+    --grid: #28313b;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0c1310;
-  --surface: #141d18;
-  --surface-2: #19241e;
-  --ink: #e7efe9;
-  --muted: #93a79b;
-  --border: #253328;
-  --border-soft: #1f2b24;
-  --accent: #35c46f;
-  --accent-text: #35c46f;
-  --accent-soft: #12291c;
+  --bg: #080d12;
+  --surface: #11171d;
+  --surface-2: #181f26;
+  --ink: #e2e9f0;
+  --muted: #94a0ad;
+  --border: #28313b;
+  --border-soft: #1d252d;
+  --accent: #65b2f1;
+  --accent-text: #65b2f1;
+  --accent-soft: #08263d;
   --danger: #f2705c;
-  --cell-1: #0b4d23;
-  --cell-2: #2f3b02;
-  --cell-3: #352b00;
-  --cell-4: #2f1d0c;
-  --cell-5: #201513;
+  --cell-1: #074b20;
+  --cell-2: #2d3900;
+  --cell-3: #322800;
+  --cell-4: #2d1b0a;
+  --cell-5: #1e1412;
   --bar-1: #3fc168;
   --bar-2: #8fac31;
   --bar-3: #b09733;
   --bar-4: #b6875e;
   --bar-5: #a9817a;
-  --curve: #62b0e4;
-  --curve-fill: rgba(98, 176, 228, 0.14);
-  --grid: #26332c;
+  --curve: #65b2f1;
+  --curve-fill: rgba(101, 178, 241, 0.14);
+  --grid: #28313b;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -16px rgba(0, 0, 0, 0.8);
 }
 
@@ -181,35 +183,6 @@ a {
   clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
-}
-
-/* --- Luonnosnauha ------------------------------------------------------- */
-
-.draft {
-  background: var(--ink);
-  color: var(--bg);
-  font-size: 0.76rem;
-  letter-spacing: 0.02em;
-}
-
-.draft .wrap {
-  padding-top: var(--s2);
-  padding-bottom: var(--s2);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s2) var(--s4);
-  align-items: baseline;
-}
-
-.draft strong {
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 0.68rem;
-}
-
-.draft a {
-  color: inherit;
 }
 
 /* --- Ylätunniste -------------------------------------------------------- */
@@ -743,7 +716,7 @@ a {
 
 .cell:not(.empty):not(.blank):hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px -6px rgba(22, 33, 28, 0.45);
+  box-shadow: 0 4px 12px -6px rgba(18, 30, 43, 0.45);
 }
 
 .cell.sel {
@@ -924,9 +897,11 @@ tr.gone td.train {
   border-radius: var(--r-pill);
 }
 
+/* Halvin-merkintä lainaa hintaskaalan halvinta askelmaa, ei aksenttia: vihreä
+   tarkoittaa sovelluksessa aina edullista ja sininen aina vuorovaikutusta. */
 .pill--best {
-  background: var(--accent-soft);
-  color: var(--accent-text);
+  background: var(--cell-1);
+  color: var(--ink);
 }
 
 .pill--gone {
@@ -1078,76 +1053,6 @@ details.tableview th:last-child {
   margin: 0 0 var(--s2);
 }
 
-.notes {
-  margin-top: var(--s7);
-  padding-top: var(--s5);
-  border-top: 2px solid var(--ink);
-}
-
-.notes > h2 {
-  margin: 0 0 var(--s2);
-  font-family: var(--display);
-  font-size: clamp(1.3rem, 3vw, 1.75rem);
-  font-weight: 800;
-  font-stretch: 115%;
-  letter-spacing: -0.025em;
-}
-
-.notes > p.lede {
-  margin: 0 0 var(--s5);
-  max-width: 62ch;
-  color: var(--muted);
-}
-
-.changes {
-  display: grid;
-  gap: 1px;
-  background: var(--border);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  overflow: hidden;
-}
-
-.change {
-  display: grid;
-  grid-template-columns: minmax(140px, 0.8fr) minmax(0, 1fr) minmax(0, 1.3fr);
-  gap: var(--s4);
-  background: var(--surface);
-  padding: var(--s4);
-}
-
-.change > div:first-child {
-  font-weight: 600;
-}
-
-.change .was {
-  color: var(--muted);
-  font-size: 0.86rem;
-}
-
-.change .now {
-  font-size: 0.86rem;
-}
-
-.change .now b {
-  color: var(--accent-text);
-  font-weight: 600;
-}
-
-.changehead {
-  background: var(--surface-2);
-  font-size: 0.64rem;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--muted);
-  padding: var(--s2) var(--s4);
-}
-
-.changehead > div:first-child {
-  font-weight: 600;
-}
-
 /* --- Kapea näyttö ------------------------------------------------------- */
 
 @media (max-width: 1080px) {
@@ -1197,13 +1102,6 @@ details.tableview th:last-child {
   }
   .cell .d {
     font-size: 0.62rem;
-  }
-  .change {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--s2);
-  }
-  .changehead {
-    display: none;
   }
 }
 

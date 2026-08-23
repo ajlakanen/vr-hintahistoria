@@ -64,6 +64,11 @@ Muutama toteutuksen kannalta olennainen valinta:
   päivä on kylläinen vihreä laatta ja kallein sulautuu taustaan. Askelmat on laskettu
   OKLCh-avaruudessa niin, että kirkkaus muuttuu tasaisesti läpi skaalan — järjestys säilyy
   siis myös punavihersokealle, ja hinta lukee lisäksi numerona ja palkin pituutena.
+- **Kaksi erillistä väriroolia.** Käyttöliittymän oma sävy on kylmä sininen (aksentti,
+  valinnat, linkit, booking-käyrä) ja neutraalit on viritetty samaan suuntaan. Hintaskaalan
+  vihreä–punainen on varattu pelkästään datalle. Sama jako pätee pieniin merkintöihin:
+  "halvin"-merkki lainaa skaalan halvinta askelmaa, valintarengas on sävytön. Näin mikään
+  väri ei tarkoita kahta asiaa.
 - **Ei kaaviokirjastoa.** Booking-käyrä piirretään inline-SVG:nä, joten sivulla ei ole
   ulkoisia riippuvuuksia eikä CDN-latausta. Ainoa ulkoinen resurssi on Google Fonts; sen voi
   halutessaan korvata itse tarjoiltavilla fonteilla.

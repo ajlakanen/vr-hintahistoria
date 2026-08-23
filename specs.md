@@ -28,9 +28,12 @@ valinta, matkustusluokka) — keskitytään pelkkään perushintaan.
 - **Keräyksen jatkaminen:** jos ajo katkeaa, seuraava ajo ohittaa reitti+lähtöpäivät,
   jotka on jo haettu alle `freshnessHours` tuntia sitten (oletus 5 h) — se jatkaa siitä
   mihin jäi sen sijaan että aloittaisi alusta. `0` = hae aina kaikki.
-- **Käyttöliittymä** toimii kahdessa moodissa: elävää API-backendia (`npm run serve`) vasten,
-  tai täysin staattisena GitHub Pages -julkaisuna (`npm run export`), jolloin `app.js` lukee
-  esirenderöityjä JSON-tiedostoja eikä serveriä tarvita lainkaan.
+- **Käyttöliittymä** lukee datansa aina samoista poluista, `data/manifest.json` (seuratut
+  suunnat) ja `data/route-<id>.json` (yhden reitin lähdöt ja hintahistoria). GitHub Pagesissa
+  ne ovat esirenderöityjä tiedostoja (`npm run export`), omalla palvelimella (`npm run serve`)
+  sama sisältö lasketaan lennossa kannasta. Selaimessa ei siis ole moodin tunnistusta eikä
+  kahta koodipolkua. Muoto on `RouteBlob` tiedostossa [src/db.ts](src/db.ts), ja sen rakentaa
+  molemmissa tapauksissa sama funktio `buildRouteBlob`.
 
 ## Tietokanta
 
@@ -41,6 +44,31 @@ Relaatiotietokanta (SQLite), jossa on kolme taulua:
 | `routes`        | Seurattavat reitit (lähtö/määränpää, asemanimet)                              |
 | `prices`        | Kunkin lähdön **nykyinen** hinta (päivitetään paikallaan)                     |
 | `price_history` | Append-only aikasarja: yksi rivi per (reitti, lähtöpäivä, lähtö, keräyspäivä) |
+
+## Käyttöliittymä
+
+Näkymä vastaa ensin kysymykseen "milloin kannattaa matkustaa": kuukausikalenterissa jokainen
+päivä näyttää sen päivän halvimman lähdön hintana, taustavärinä ja palkin pituutena. Päivän
+valinta avaa sivupaneeliin päivän lähdöt (oletuksena halvin ensin) ja valitun lähdön
+booking-käyrän.
+
+Muutama toteutuksen kannalta olennainen valinta:
+
+- **Kalenteri lasketaan selaimessa** lähtöriveistä, ei kannassa esisummattuna. Syy on
+  lähtöaikasuodatin: jos käyttäjä rajaa matkustusajan esim. aamuun, päivän halvin hinta on
+  laskettava pelkistä aamulähdöistä. Esisummattu kalenteri lupaisi hinnan, jota ei voi ostaa.
+  Siksi `RouteBlob` sisältää vain lähdöt ja historian — ei valmista kalenteria.
+- **Vain varattavissa olevat lähdöt** (`available = 1`) kelpaavat päivän halvimmaksi, jottei
+  loppuunmyydyn lähdön vanha hinta näytä tarjoukselta.
+- **Väriskaala** on vihreä → keltainen → punainen, mutta näkyvyys seuraa edullisuutta: halvin
+  päivä on kylläinen vihreä laatta ja kallein sulautuu taustaan. Askelmat on laskettu
+  OKLCh-avaruudessa niin, että kirkkaus muuttuu tasaisesti läpi skaalan — järjestys säilyy
+  siis myös punavihersokealle, ja hinta lukee lisäksi numerona ja palkin pituutena.
+- **Ei kaaviokirjastoa.** Booking-käyrä piirretään inline-SVG:nä, joten sivulla ei ole
+  ulkoisia riippuvuuksia eikä CDN-latausta. Ainoa ulkoinen resurssi on Google Fonts; sen voi
+  halutessaan korvata itse tarjoiltavilla fonteilla.
+- **Selaimeen tallennetaan** valittu reitti, teema, lähtöaikaikkuna ja lajittelu
+  (`localStorage`, polkuun sidottu etuliite `vrhh:<pathname>:`).
 
 ## Päivittäinen ajastus (Windows Task Scheduler)
 
@@ -72,8 +100,8 @@ npm run export      # kirjoittaa docs/-kansioon: manifest.json + per-reitti JSON
 npm run deploy      # julkaisee docs/:n gh-pages-haaraan (force push → ei historian kertymää)
 ```
 
-`app.js` tunnistaa staattisen datan (`data/manifest.json`) ja siirtyy automaattisesti
-staattiseen moodiin. Pages tarjoilee sivun osoitteesta
+Export kirjoittaa täsmälleen ne polut joita sivu muutenkin lukee, joten Pages-julkaisu ja
+paikallinen palvelin käyttäytyvät identtisesti. Pages tarjoilee sivun osoitteesta
 `https://<käyttäjä>.github.io/vr-hintahistoria/`. Päivitä julkaisu ajamalla `export` + `deploy`
 uudelleen keräyksen jälkeen.
 

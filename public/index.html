@@ -3,14 +3,21 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>VR dynaamisen hinnoittelun seuraaja</title>
+    <title>VR-hintakalenteri</title>
+    <meta name="description" content="Seuraa VR:n kaukoliikenteen lippujen hintoja: näe kuukauden halvimmat lähtöpäivät yhdellä silmäyksellä." />
     <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    />
     <!-- Aseta teema ENNEN tyylien/sisällön piirtoa, ettei vaalea taustaväri vilkahda
-         tummaa teemaa käytettäessä (FOUC). app.js hoitaa loput (nappi, kaaviot, vaihto). -->
+         tummaa teemaa käytettäessä (FOUC). app.js hoitaa loput (nappi, vaihto).
+         HUOM: avain rakennetaan käsin samassa muodossa kuin app.js:n STORE_PREFIX. -->
     <script>
       (function () {
         try {
-          // Polkuun sidottu avain (sama muoto kuin app.js:n STORE_PREFIX).
           var saved = localStorage.getItem("vrhh:" + location.pathname + ":theme");
           var dark = saved
             ? saved === "dark"
@@ -19,100 +26,155 @@
         } catch (e) {}
       })();
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   </head>
   <body>
-    <header>
-      <div class="topbar">
-        <h1>VR dynaamisen hinnoittelun seuraaja</h1>
-        <button type="button" id="themeToggle" class="theme-toggle" aria-label="Vaihda teemaa"></button>
+    <header class="masthead">
+      <div class="wrap">
+        <div class="brand">
+          <h1>VR-hintakalenteri</h1>
+          <p>Halvimmat lähtöpäivät yhdellä silmäyksellä</p>
+        </div>
+        <button type="button" class="icon-btn" id="theme" aria-label="Vaihda teema">◐</button>
       </div>
-      <p class="muted">Tarkastele kerättyjä hintoja valitsemallasi reitillä ja aikavälillä.</p>
-      <p class="muted note">
-        ℹ️ Seurattavat reitit on valittu Suomen suosituimmista yhteysväleistä matkustajamäärien
-        perusteella (lähteet:
-        <a href="https://vayla.fi/vaylista/aineistot/tilastot/ratatilastot" target="_blank" rel="noopener">Väylävirasto</a>
-        ja <a href="https://paarata.fi/yhteysvalit/" target="_blank" rel="noopener">paarata.fi</a>).
-      </p>
     </header>
 
-    <section class="controls">
-      <label>
-        Reitti
-        <select id="route"></select>
-      </label>
-      <label>
-        Alkupäivä
-        <span class="datefield">
-          <input type="text" id="startText" class="date-text" inputmode="numeric"
-                 placeholder="pp.kk.vvvv" autocomplete="off" aria-label="Alkupäivä (pp.kk.vvvv)" />
-          <button type="button" class="cal-btn" data-target="start" aria-label="Avaa kalenteri">📅</button>
-          <input type="date" id="start" class="date-native" tabindex="-1" aria-hidden="true" />
-        </span>
-      </label>
-      <label>
-        Loppupäivä
-        <span class="datefield">
-          <input type="text" id="endText" class="date-text" inputmode="numeric"
-                 placeholder="pp.kk.vvvv" autocomplete="off" aria-label="Loppupäivä (pp.kk.vvvv)" />
-          <button type="button" class="cal-btn" data-target="end" aria-label="Avaa kalenteri">📅</button>
-          <input type="date" id="end" class="date-native" tabindex="-1" aria-hidden="true" />
-        </span>
-      </label>
-      <button id="load">Hae</button>
-    </section>
+    <main class="wrap">
+      <section class="summary">
+        <div class="routecard">
+          <span class="eyebrow">Reitti</span>
+          <div class="codes">
+            <span class="pick">
+              <span class="code" id="cFrom">HKI</span>
+              <span class="caret" aria-hidden="true">▾</span>
+              <select id="from" aria-label="Lähtöasema"></select>
+            </span>
+            <span class="arrow" aria-hidden="true">→</span>
+            <span class="pick">
+              <span class="code" id="cTo">TPE</span>
+              <span class="caret" aria-hidden="true">▾</span>
+              <select id="to" aria-label="Määräasema"></select>
+            </span>
+            <button type="button" class="swap" id="swap" aria-label="Vaihda suunta">⇄</button>
+          </div>
+          <div class="names" id="cNames">Helsinki – Tampere</div>
+        </div>
 
-    <section class="panel">
-      <h2>Halvin hinta ja keskihinta per lähtöpäivä</h2>
-      <p class="muted">
-        Napauta päivää käyrältä nähdäksesi sen lähdöt — valittu päivä näkyy pystyviivana.
-        Harmaa tausta = viikonloppu (la–su).
-      </p>
-      <div class="chart-box"><canvas id="calendarChart"></canvas></div>
-      <div class="range-nav">
-        <button type="button" id="rangePrev" class="range-btn">← Edelliset</button>
-        <button type="button" id="rangeNext" class="range-btn">Seuraavat →</button>
+        <div class="statblock">
+          <div class="tiles" id="tiles"></div>
+          <p class="statnote" id="statnote"></p>
+        </div>
+      </section>
+
+      <section class="filterbar" aria-label="Rajaa lähtöaikaa">
+        <div class="fgroup">
+          <span class="eyebrow">Lähtöaika</span>
+          <span class="hours">
+            <select id="h0" aria-label="Aikaisintaan"></select>
+            <span aria-hidden="true">–</span>
+            <select id="h1" aria-label="Viimeistään"></select>
+          </span>
+        </div>
+        <div class="seg" id="presets" role="group" aria-label="Valmiit aikaikkunat">
+          <button type="button" data-h="0-24">Kaikki</button>
+          <button type="button" data-h="5-10">Aamu</button>
+          <button type="button" data-h="10-16">Päivä</button>
+          <button type="button" data-h="16-24">Ilta</button>
+        </div>
+        <span class="fcount" id="fcount"></span>
+      </section>
+
+      <section class="workspace">
+        <div class="panel">
+          <header>
+            <h2>Hinta lähtöpäivittäin</h2>
+            <div class="monthnav">
+              <button type="button" class="navbtn" id="prev" aria-label="Edellinen kuukausi">←</button>
+              <span class="label" id="monthLabel"></span>
+              <button type="button" class="navbtn" id="next" aria-label="Seuraava kuukausi">→</button>
+            </div>
+          </header>
+          <div class="body">
+            <div class="legend">
+              <span>Päivän halvin hinta</span>
+              <span class="ramp-wrap">
+                <span id="rampLo" class="mono"></span>
+                <span class="ramp" id="ramp" aria-hidden="true"></span>
+                <span id="rampHi" class="mono"></span>
+              </span>
+            </div>
+            <div class="calwrap">
+              <div class="dow" aria-hidden="true">
+                <span>ma</span><span>ti</span><span>ke</span><span>to</span><span>pe</span
+                ><span class="we">la</span><span class="we">su</span>
+              </div>
+              <div class="cal" id="cal" role="grid" aria-label="Hintakalenteri"></div>
+              <div class="tip" id="calTip"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="daypanel">
+          <div class="panel">
+            <header>
+              <div>
+                <div class="date" id="dayDate">—</div>
+                <div class="sub" id="daySub"></div>
+              </div>
+              <div class="seg" id="sortmode" role="group" aria-label="Lähtöjen järjestys">
+                <button type="button" data-sort="price">Halvin ensin</button>
+                <button type="button" data-sort="time">Aikajärjestys</button>
+              </div>
+            </header>
+            <div class="body" id="depBody"></div>
+          </div>
+
+          <div class="panel" style="margin-top: var(--s4)">
+            <header>
+              <h2>Hintakehitys</h2>
+              <span class="pill pill--meta" id="histMeta"></span>
+            </header>
+            <div class="body">
+              <div class="sub" id="histSub" style="color: var(--muted); font-size: 0.78rem; margin-bottom: var(--s2)"></div>
+              <div class="chart" id="hist"></div>
+              <details class="tableview" id="histTable"></details>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="colophon">
+        <div>
+          <h3>Hintalähde</h3>
+          <p>
+            Hinnat haetaan automaattisesti <a href="https://www.vr.fi" target="_blank" rel="noopener">VR.fi</a>:n julkisesta
+            hakurajapinnasta noin kerran vuorokaudessa. Ne ovat aikuisen perushintoja ilman alennuksia tai lisävalintoja.
+          </p>
+        </div>
+        <div>
+          <h3>Tarkkuus</h3>
+          <p>
+            Hinnat ovat suuntaa-antavia eivätkä virallinen lähde — varmista lopullinen hinta VR:ltä. Vaihdollisilla
+            yhteysväleillä näytetään koko matkan läpihinta.
+          </p>
+        </div>
+        <div>
+          <h3>Seuratut reitit</h3>
+          <p>
+            Reitit on valittu Suomen suosituimmista yhteysväleistä matkustajamäärien perusteella (lähteinä
+            <a href="https://vayla.fi/vaylista/aineistot/tilastot/ratatilastot" target="_blank" rel="noopener">Väylävirasto</a> ja
+            <a href="https://paarata.fi/yhteysvalit/" target="_blank" rel="noopener">paarata.fi</a>).
+          </p>
+        </div>
+        <div>
+          <h3>Lähdekoodi</h3>
+          <p>
+            <a href="https://github.com/ajlakanen/vr-hintahistoria" target="_blank" rel="noopener">ajlakanen/vr-hintahistoria</a>
+            — menetelmä, tietokantaskeema ja seurattujen reittien lista.
+          </p>
+          <p id="footerStats"></p>
+        </div>
       </div>
-    </section>
-
-    <section class="panel two-col">
-      <div>
-        <h2 id="depTitle">Lähdöt</h2>
-        <p class="muted" id="depHint">Klikkaa päivää yllä olevasta käyrästä nähdäksesi sen lähdöt.</p>
-        <table id="departures" hidden>
-          <thead>
-            <tr><th>Lähtö</th><th>Juna</th><th>Hinta</th><th><span class="sr-only">Osta</span></th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div>
-        <h2 id="histTitle">Hintakehitys (booking-käyrä)</h2>
-        <p class="muted" id="histHint">Valitse lähtö nähdäksesi miten sen hinta on muuttunut keräyspäivittäin.</p>
-        <div class="chart-box chart-box--hist"><canvas id="historyChart"></canvas></div>
-      </div>
-    </section>
-
-    <footer class="site-footer muted">
-      <p>
-        <strong>Hintalähde:</strong> hinnat haetaan automaattisesti
-        <a href="https://www.vr.fi" target="_blank" rel="noopener">VR.fi</a>:n julkisesta
-        hakurajapinnasta. Jokaisesta lähdöstä tallennetaan myös hintahistoria, joten näkyvissä
-        on lähdön koko hintakehitys keräyspäivittäin (ns. booking-käyrä).
-      </p>
-      <p>
-        <strong>Keräysrytmi:</strong> hinnat päivitetään tyypillisesti noin kerran vuorokaudessa.
-        Hinnat ovat suuntaa-antavia eivätkä virallinen lähde — varmista lopullinen hinta aina VR:ltä.
-        Vaihdollisilla yhteysväleillä hinta on koko matkan läpihinta.
-      </p>
-      <p id="footerStats" class="footer-stats"></p>
-      <p>
-        <a href="https://github.com/ajlakanen/vr-hintahistoria" target="_blank" rel="noopener">
-          Lähdekoodi, menetelmä ja seuratut reitit GitHubissa →
-        </a>
-      </p>
-    </footer>
-
+    </main>
     <script src="app.js"></script>
   </body>
 </html>

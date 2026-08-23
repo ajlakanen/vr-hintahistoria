@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { loadConfig, PUBLIC_DIR } from "./config.ts";
-import { getDb, getActiveRoutes, expandHistorySegments, type HistorySegment } from "./db.ts";
+import { getDb, getActiveRoutes, buildRouteBlob } from "./db.ts";
 import { log } from "./logger.ts";
 
 const MIME: Record<string, string> = {
@@ -38,50 +38,15 @@ function apiRoutes() {
   }));
 }
 
-/** Halvin nykyhinta per lähtöpäivä valitulla aikavälillä. */
-function apiCalendar(routeId: number, start: string, end: string) {
-  return getDb()
-    .prepare(
-      // Vain varattavissa olevat lähdöt (available=1) -> "halvin/keskihinta" pysyy totena
-      // eikä näytä loppuunmyydyn lähdön vanhaa (ei enää ostettavissa olevaa) hintaa.
-      `SELECT travel_date AS date,
-              MIN(price)  AS minPrice,
-              AVG(price)  AS avgPrice,
-              MAX(price)  AS maxPrice,
-              COUNT(*)    AS departures
-       FROM prices
-       WHERE route_id = ? AND travel_date BETWEEN ? AND ? AND available = 1
-       GROUP BY travel_date
-       ORDER BY travel_date`
-    )
-    .all(routeId, start, end);
-}
-
-/** Yhden lähtöpäivän kaikki lähdöt (tuorein hinta). */
-function apiDepartures(routeId: number, travelDate: string) {
-  return getDb()
-    .prepare(
-      `SELECT departure_time AS time, train_number AS train, price, currency,
-              available, updated_at AS updatedAt
-       FROM prices
-       WHERE route_id = ? AND travel_date = ?
-       ORDER BY departure_time`
-    )
-    .all(routeId, travelDate);
-}
-
-/** Booking-käyrä: miten yhden lähdön hinta on kehittynyt ajopäivittäin. Kanta tallentaa vain
- *  muutoskohdat (segmentit); laajennetaan takaisin päiväkohtaiseksi sarjaksi näyttöä varten. */
-function apiHistory(routeId: number, travelDate: string, departureTime: string, trainNumber: string) {
-  const segments = getDb()
-    .prepare(
-      `SELECT scrape_date AS scrapeDate, last_scrape_date AS lastScrapeDate, price, currency, available
-       FROM price_history
-       WHERE route_id = ? AND travel_date = ? AND departure_time = ? AND COALESCE(train_number,'') = ?
-       ORDER BY scrape_date`
-    )
-    .all(routeId, travelDate, departureTime, trainNumber) as unknown as HistorySegment[];
-  return expandHistorySegments(segments);
+/**
+ * Yhden reitin koko datablobi. Sama muoto kuin staattisen exportin
+ * `data/route-<id>.json`, jotta selain käyttää identtistä koodia kummassakin
+ * moodissa. Kalenteri lasketaan selaimessa näistä lähdöistä, jolloin
+ * lähtöajan rajaus vaikuttaa myös päiväkohtaiseen halvimpaan hintaan.
+ */
+function apiRoute(routeId: number) {
+  const route = getActiveRoutes().find((r) => r.id === routeId);
+  return route ? buildRouteBlob(route) : null;
 }
 
 // ---------- staattiset tiedostot ----------
@@ -113,35 +78,20 @@ getDb(); // varmista skeema
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", "http://localhost");
-    const q = url.searchParams;
 
-    if (url.pathname === "/api/routes") {
-      return sendJson(res, 200, apiRoutes());
+    // Palvelin tarjoilee täsmälleen samat polut kuin staattinen Pages-julkaisu, vain
+    // laskettuna lennossa. Näin selaimessa ei ole moodin tunnistusta eikä kahta koodipolkua.
+    if (url.pathname === "/data/manifest.json") {
+      return sendJson(res, 200, { generatedAt: new Date().toISOString(), routes: apiRoutes() });
     }
-    if (url.pathname === "/api/calendar") {
-      const routeId = Number(q.get("route_id"));
-      const start = q.get("start") ?? "";
-      const end = q.get("end") ?? "";
-      if (!routeId || !start || !end) return sendJson(res, 400, { error: "route_id, start, end vaaditaan" });
-      return sendJson(res, 200, apiCalendar(routeId, start, end));
-    }
-    if (url.pathname === "/api/departures") {
-      const routeId = Number(q.get("route_id"));
-      const date = q.get("travel_date") ?? "";
-      if (!routeId || !date) return sendJson(res, 400, { error: "route_id, travel_date vaaditaan" });
-      return sendJson(res, 200, apiDepartures(routeId, date));
-    }
-    if (url.pathname === "/api/history") {
-      const routeId = Number(q.get("route_id"));
-      const date = q.get("travel_date") ?? "";
-      const time = q.get("departure_time") ?? "";
-      const train = q.get("train_number") ?? "";
-      if (!routeId || !date || !time)
-        return sendJson(res, 400, { error: "route_id, travel_date, departure_time vaaditaan" });
-      return sendJson(res, 200, apiHistory(routeId, date, time, train));
+    const routeFile = url.pathname.match(/^\/data\/route-(\d+)\.json$/);
+    if (routeFile) {
+      const blob = apiRoute(Number(routeFile[1]));
+      if (!blob) return sendJson(res, 404, { error: "tuntematon reitti" });
+      return sendJson(res, 200, blob);
     }
 
-    if (url.pathname.startsWith("/api/")) return sendJson(res, 404, { error: "tuntematon rajapinta" });
+    if (url.pathname.startsWith("/data/")) return sendJson(res, 404, { error: "tuntematon tiedosto" });
     return await serveStatic(res, url.pathname);
   } catch (e) {
     log.error(e);

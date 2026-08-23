@@ -375,3 +375,96 @@ export function expandHistorySegments(segments: HistorySegment[]): HistoryPoint[
   }
   return out;
 }
+
+/** Yhden lähdön rivi reittiblobissa. */
+export interface DepartureRow {
+  time: string;
+  train: string | null;
+  trainType: string | null;
+  price: number;
+  currency: string;
+  available: number;
+  updatedAt: string;
+}
+
+/**
+ * Yhden reitin koko datablobi: lähdöt päivittäin ja kunkin lähdön hintahistoria.
+ *
+ * Sama muoto tarjoillaan sekä palvelinmoodissa (`GET /api/route`) että staattisessa
+ * Pages-julkaisussa (`data/route-<id>.json`), jotta selaimen koodi on identtinen
+ * molemmissa. Kalenteria EI esisummata: käyttöliittymä laskee päivän halvimman
+ * hinnan näistä lähdöistä, jolloin lähtöajan rajaus vaikuttaa myös kalenteriin.
+ */
+export interface RouteBlob {
+  route: { id: number; from: string; to: string; fromName: string | null; toName: string | null };
+  departures: Record<string, DepartureRow[]>;
+  history: Record<string, HistoryPoint[]>;
+}
+
+interface DepQueryRow extends DepartureRow {
+  travel_date: string;
+}
+interface HistQueryRow extends HistorySegment {
+  travel_date: string;
+  departure_time: string;
+  train_number: string | null;
+}
+
+let depBlobStmt: ReturnType<DatabaseSync["prepare"]> | null = null;
+let histBlobStmt: ReturnType<DatabaseSync["prepare"]> | null = null;
+
+export function buildRouteBlob(route: RouteRow): RouteBlob {
+  const db = getDb();
+  depBlobStmt ??= db.prepare(
+    `SELECT travel_date, departure_time AS time, train_number AS train, train_type AS trainType,
+            price, currency, available, updated_at AS updatedAt
+     FROM prices WHERE route_id = ? ORDER BY travel_date, departure_time`
+  );
+  histBlobStmt ??= db.prepare(
+    // Segmentit (store-on-change); laajennetaan päiväkohtaisiksi pisteiksi alla.
+    `SELECT travel_date, departure_time, train_number, scrape_date AS scrapeDate,
+            last_scrape_date AS lastScrapeDate, price, currency, available
+     FROM price_history WHERE route_id = ? ORDER BY travel_date, departure_time, scrape_date`
+  );
+
+  const departures: Record<string, DepartureRow[]> = {};
+  for (const d of depBlobStmt.all(route.id) as unknown as DepQueryRow[]) {
+    (departures[d.travel_date] ??= []).push({
+      time: d.time,
+      train: d.train,
+      trainType: d.trainType,
+      price: d.price,
+      currency: d.currency,
+      available: d.available,
+      updatedAt: d.updatedAt,
+    });
+  }
+
+  const history: Record<string, HistoryPoint[]> = {};
+  for (const h of histBlobStmt.all(route.id) as unknown as HistQueryRow[]) {
+    const key = `${h.travel_date}|${h.departure_time}|${h.train_number ?? ""}`;
+    (history[key] ??= []).push(
+      ...expandHistorySegments([
+        {
+          scrapeDate: h.scrapeDate,
+          lastScrapeDate: h.lastScrapeDate,
+          price: h.price,
+          currency: h.currency,
+          available: h.available,
+        },
+      ])
+    );
+  }
+
+  return {
+    route: {
+      id: route.id,
+      from: route.from_code,
+      to: route.to_code,
+      fromName: route.from_name,
+      toName: route.to_name,
+    },
+    departures,
+    history,
+  };
+}

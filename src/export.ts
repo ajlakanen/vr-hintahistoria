@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync, readFileSync, cpSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { PROJECT_ROOT, PUBLIC_DIR } from "./config.ts";
-import { getDb, getActiveRoutes, expandHistorySegments } from "./db.ts";
+import { getDb, getActiveRoutes, buildRouteBlob } from "./db.ts";
 import { log } from "./logger.ts";
 
 /**
@@ -16,28 +16,8 @@ import { log } from "./logger.ts";
 const DOCS_DIR = join(PROJECT_ROOT, "docs");
 const DATA_DIR = join(DOCS_DIR, "data");
 
-interface DepRow {
-  travel_date: string;
-  time: string;
-  train: string | null;
-  price: number;
-  currency: string;
-  available: number;
-  updatedAt: string;
-}
-interface HistRow {
-  travel_date: string;
-  departure_time: string;
-  train_number: string | null;
-  scrapeDate: string;
-  lastScrapeDate: string | null;
-  price: number;
-  currency: string;
-  available: number;
-}
-
 function main(): void {
-  const db = getDb();
+  getDb(); // varmista skeema
   const routes = getActiveRoutes();
   if (routes.length === 0) {
     log.error("Ei reittejä. Aja ensin: npm run seed");
@@ -60,24 +40,6 @@ function main(): void {
     .replace('src="app.js"', `src="app.js?v=${buildId}"`);
   writeFileSync(indexPath, html);
 
-  const calStmt = db.prepare(
-    // Vain varattavissa olevat lähdöt -> "halvin/keskihinta" ei näytä loppuunmyydyn vanhaa hintaa.
-    `SELECT travel_date AS date, MIN(price) AS minPrice, AVG(price) AS avgPrice,
-            MAX(price) AS maxPrice, COUNT(*) AS departures
-     FROM prices WHERE route_id = ? AND available = 1 GROUP BY travel_date ORDER BY travel_date`
-  );
-  const depStmt = db.prepare(
-    `SELECT travel_date, departure_time AS time, train_number AS train, price, currency,
-            available, updated_at AS updatedAt
-     FROM prices WHERE route_id = ? ORDER BY travel_date, departure_time`
-  );
-  const histStmt = db.prepare(
-    // Segmentit (store-on-change); laajennetaan päiväkohtaisiksi pisteiksi alla.
-    `SELECT travel_date, departure_time, train_number, scrape_date AS scrapeDate, last_scrape_date AS lastScrapeDate,
-            price, currency, available
-     FROM price_history WHERE route_id = ? ORDER BY travel_date, departure_time, scrape_date`
-  );
-
   let bytes = 0;
   const manifestRoutes: {
     id: number;
@@ -88,57 +50,24 @@ function main(): void {
     earliestDate: string | null;
   }[] = [];
   for (const r of routes) {
-    const calendar = calStmt.all(r.id);
-
-    const departures: Record<string, Omit<DepRow, "travel_date">[]> = {};
-    for (const d of depStmt.all(r.id) as unknown as DepRow[]) {
-      (departures[d.travel_date] ??= []).push({
-        time: d.time,
-        train: d.train,
-        price: d.price,
-        currency: d.currency,
-        available: d.available,
-        updatedAt: d.updatedAt,
-      });
-    }
-
-    const history: Record<
-      string,
-      { scrapeDate: string; price: number; currency: string; available: number }[]
-    > = {};
-    for (const h of histStmt.all(r.id) as unknown as HistRow[]) {
-      const tn = h.train_number ?? "";
-      const key = `${h.travel_date}|${h.departure_time}|${tn}`;
-      // Laajenna segmentti [scrapeDate, lastScrapeDate] takaisin päiväkohtaisiksi pisteiksi.
-      (history[key] ??= []).push(
-        ...expandHistorySegments([
-          {
-            scrapeDate: h.scrapeDate,
-            lastScrapeDate: h.lastScrapeDate,
-            price: h.price,
-            currency: h.currency,
-            available: h.available,
-          },
-        ])
-      );
-    }
-
-    const blob = {
-      route: { id: r.id, from: r.from_code, to: r.to_code, fromName: r.from_name, toName: r.to_name },
-      calendar,
-      departures,
-      history,
-    };
+    const blob = buildRouteBlob(r);
     const json = JSON.stringify(blob);
     bytes += json.length;
     writeFileSync(join(DATA_DIR, `route-${r.id}.json`), json);
+
+    // Varhaisin päivä, jolta on vielä varattava lähtö — loppuunmyydyt eivät kelpaa.
+    const earliestDate =
+      Object.keys(blob.departures)
+        .sort()
+        .find((d) => blob.departures[d].some((x) => x.available === 1)) ?? null;
+
     manifestRoutes.push({
       id: r.id,
       from: r.from_code,
       to: r.to_code,
       fromName: r.from_name,
       toName: r.to_name,
-      earliestDate: (calendar[0] as { date?: string } | undefined)?.date ?? null,
+      earliestDate,
     });
   }
 

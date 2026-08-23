@@ -60,6 +60,10 @@ Muutama toteutuksen kannalta olennainen valinta:
   Siksi `RouteBlob` sisältää vain lähdöt ja historian — ei valmista kalenteria.
 - **Vain varattavissa olevat lähdöt** (`available = 1`) kelpaavat päivän halvimmaksi, jottei
   loppuunmyydyn lähdön vanha hinta näytä tarjoukselta.
+- **Menneet lähtöpäivät jätetään pois** kaikkialta: kalenterista, tunnusluvuista ja
+  lähtömäärästä. Kuukausiruudukossa mennyt päivä säilyttää paikkansa himmeänä numerona,
+  jottei viikonpäiväsarakkeiden kohdistus rikkoudu. Kannassa voi olla vanhoja päiviä, koska
+  `pruneTravelDatesBefore` ajetaan vasta keräyksen yhteydessä.
 - **Väriskaala** on vihreä → keltainen → punainen, mutta näkyvyys seuraa edullisuutta: halvin
   päivä on kylläinen vihreä laatta ja kallein sulautuu taustaan. Askelmat on laskettu
   OKLCh-avaruudessa niin, että kirkkaus muuttuu tasaisesti läpi skaalan — järjestys säilyy

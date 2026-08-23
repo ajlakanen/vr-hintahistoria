@@ -209,9 +209,11 @@ const inWindow = (t) => {
 
 function countDepartures() {
   const byDate = blob.dep;
+  const today = todayIso();
   let total = 0;
   let shown = 0;
   for (const date in byDate) {
+    if (date < today) continue;
     for (const d of byDate[date]) {
       total++;
       if (inWindow(d[0])) shown++;
@@ -225,16 +227,20 @@ function countDepartures() {
 /**
  * Kalenteririvit lasketaan lähdöistä eikä valmiiksi summatusta taulusta,
  * jotta aikaikkunan rajaus näkyy myös kalenterissa. Mukaan vain varattavissa
- * olevat lähdöt, jotta loppuunmyydyn vanha hinta ei painu "halvimmaksi".
+ * olevat lähdöt, jotta loppuunmyydyn vanha hinta ei painu "halvimmaksi", ja
+ * vain tästä päivästä eteenpäin — menneen päivän hintaa ei voi enää ostaa.
+ * Päivämäärä on avaimessa mukana, jotta välimuisti vanhenee keskiyöllä.
  */
 let calCache = { key: null, rows: [] };
 
 function calendarRows() {
-  const key = `${state.routeId}|${state.h0}|${state.h1}`;
+  const today = todayIso();
+  const key = `${state.routeId}|${state.h0}|${state.h1}|${today}`;
   if (calCache.key === key) return calCache.rows;
   const byDate = blob.dep;
   const rows = [];
   for (const date of Object.keys(byDate).sort()) {
+    if (date < today) continue;
     let mn = Infinity;
     let mx = -Infinity;
     let sum = 0;
@@ -333,10 +339,18 @@ function renderCalendar() {
   const cells = [];
   for (let i = 0; i < lead; i++) cells.push('<div class="cell blank"></div>');
 
+  const today = todayIso();
   for (let d = 1; d <= days; d++) {
     const key = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const row = byDate.get(key);
     const we = isWeekend(key) ? " we" : "";
+    // Mennyt päivä ja "seurataan mutta ei hintaa" ovat eri asioita, joten ne
+    // näyttävät eriltä: mennyt on pelkkä himmeä numero, katkoviiva tarkoittaa
+    // ettei kyseiseltä päivältä ole (vielä) kerättyä hintaa.
+    if (key < today) {
+      cells.push(`<div class="cell past"><span class="d">${d}</span></div>`);
+      continue;
+    }
     if (!row) {
       cells.push(`<div class="cell empty${we}"><span class="d">${d}</span></div>`);
       continue;
@@ -682,9 +696,18 @@ function renderFooter() {
 function renderNoMatches() {
   state.date = null;
   state.dep = null;
-  $("tiles").innerHTML =
-    '<div class="tile"><span class="k">Ei lähtöjä</span>' +
-    '<span class="s">Valitussa aikaikkunassa ei ole yhtään varattavaa lähtöä tällä reitillä.</span></div>';
+
+  // Kaksi eri syytä näyttää samalta, jos ei erotella: liian kapea aikaikkuna vai
+  // se ettei reitiltä ole lainkaan tulevia lähtöjä (keräys vanhentunut).
+  const hasFuture = Object.keys(blob.dep).some((d) => d >= todayIso());
+  const tile = hasFuture
+    ? "Valitussa aikaikkunassa ei ole yhtään varattavaa lähtöä tällä reitillä."
+    : "Tältä reitiltä ei ole hintoja tulevilta päiviltä.";
+  const note = hasFuture
+    ? "Laajenna aikaikkunaa nähdäksesi hintoja."
+    : "Kaikki kerätyt lähtöpäivät ovat jo menneet — aja keräys uudelleen.";
+
+  $("tiles").innerHTML = `<div class="tile"><span class="k">Ei lähtöjä</span><span class="s">${esc(tile)}</span></div>`;
   $("statnote").textContent = "";
   $("ramp").innerHTML = "";
   $("rampLo").textContent = "";
@@ -692,8 +715,9 @@ function renderNoMatches() {
   $("monthLabel").textContent = "—";
   $("prev").disabled = true;
   $("next").disabled = true;
-  $("cal").innerHTML = '<p class="empty-note" style="grid-column:1/-1">Laajenna aikaikkunaa nähdäksesi hintoja.</p>';
+  $("cal").innerHTML = `<p class="empty-note" style="grid-column:1/-1">${esc(note)}</p>`;
   renderDay();
+  renderFooter();
 }
 
 /* ---------- aikaikkunan suodatin ---------- */

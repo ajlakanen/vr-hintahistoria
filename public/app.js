@@ -191,8 +191,6 @@ async function setRoute(from, to) {
 function showError(msg, err) {
   if (err) console.error(err);
   $("tiles").innerHTML = "";
-  $("statnote").textContent = "";
-  $("fcount").textContent = "";
   $("cal").innerHTML = `<p class="empty-note" style="grid-column:1/-1">${esc(msg)} Kokeile päivittää sivu.</p>`;
   $("depBody").innerHTML = "";
   $("dayDate").textContent = "—";
@@ -206,21 +204,6 @@ const inWindow = (t) => {
   const h = +t.slice(0, 2);
   return h >= state.h0 && h < state.h1;
 };
-
-function countDepartures() {
-  const byDate = blob.dep;
-  const today = todayIso();
-  let total = 0;
-  let shown = 0;
-  for (const date in byDate) {
-    if (date < today) continue;
-    for (const d of byDate[date]) {
-      total++;
-      if (inWindow(d[0])) shown++;
-    }
-  }
-  return { total, shown };
-}
 
 /* ---------- hintaskaala ---------- */
 
@@ -293,12 +276,6 @@ function renderTiles() {
       <span class="s">${rows.length} lähtöpäivää</span>
     </div>` +
     goTile("", "Kallein päivä", priciest);
-
-  // Ilman tätä lausetta "kallein päivä" jää tulkinnanvaraiseksi: onko kyse
-  // päivän kalleimmasta lähdöstä vai kalleimmasta päivästä.
-  $("statnote").textContent =
-    `Jokainen luku kuvaa päivän halvinta lähtöä. Kalleimpanakin päivänä ` +
-    `(${fmtDay(priciest[0])}) halvin lippu maksaa ${eur(priciest[1])}.`;
 }
 
 /* ---------- kalenteri ---------- */
@@ -720,7 +697,6 @@ function renderNoMatches() {
     : "Kaikki kerätyt lähtöpäivät ovat jo menneet — aja keräys uudelleen.";
 
   $("tiles").innerHTML = `<div class="tile"><span class="k">Ei lähtöjä</span><span class="s">${esc(tile)}</span></div>`;
-  $("statnote").textContent = "";
   $("ramp").innerHTML = "";
   $("rampLo").textContent = "";
   $("rampHi").textContent = "";
@@ -752,10 +728,6 @@ function syncFilterUi() {
   for (const b of $("sortmode").querySelectorAll("[data-sort]")) {
     b.classList.toggle("on", b.dataset.sort === state.sort);
   }
-  const { total, shown } = countDepartures();
-  $("fcount").textContent = all
-    ? `${nf0.format(total)} seurattua lähtöä`
-    : `${nf0.format(shown)} / ${nf0.format(total)} lähtöä aikaikkunassa`;
 }
 
 function setWindow(h0, h1) {

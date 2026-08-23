@@ -357,13 +357,6 @@ a {
   gap: var(--s2);
 }
 
-.statnote {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.78rem;
-  max-width: 68ch;
-}
-
 .tiles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -491,13 +484,6 @@ a {
 
 .hours select:hover {
   border-color: var(--accent);
-}
-
-.fcount {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Segmenttivalinta: käytössä sekä aikapresetissä että lähtöjen järjestyksessä. */
@@ -1147,10 +1133,6 @@ details.tableview th:last-child {
     flex: 1;
   }
   .tile .s {
-    flex-basis: 100%;
-  }
-  .fcount {
-    margin-left: 0;
     flex-basis: 100%;
   }
   .cell {

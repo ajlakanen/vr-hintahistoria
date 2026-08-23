@@ -812,20 +812,25 @@ function step(dir) {
   render();
 }
 
+/** Tuo lähtölista näkyviin, jos se jäi ruudun ulkopuolelle — muuten päivän
+    valinta muuttaisi vain sitä osaa sivusta jota ei näe. */
+function revealDayPanel() {
+  const panel = document.querySelector(".daypanel");
+  const box = panel.getBoundingClientRect();
+  if (box.top >= 0 && box.top <= window.innerHeight * 0.55) return;
+  panel.scrollIntoView({
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    block: "start",
+  });
+}
+
 /** Oikotie tunnusluvusta: vaihda päivä ja valitse sen halvin lähtö. */
 function gotoDate(date) {
   state.month = monthKey(date);
   state.date = date;
   state.dep = null; // renderDay valitsee päivän halvimman
   render();
-  const panel = document.querySelector(".daypanel");
-  const box = panel.getBoundingClientRect();
-  if (box.top < 0 || box.top > window.innerHeight * 0.55) {
-    panel.scrollIntoView({
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      block: "start",
-    });
-  }
+  revealDayPanel();
 }
 
 $("tiles").addEventListener("click", (e) => {
@@ -840,6 +845,9 @@ $("cal").addEventListener("click", (e) => {
   state.dep = null;
   renderCalendar();
   renderDay();
+  // Yhden sarakkeen taitossa lista on kalenterin alapuolella, siis näkymän
+  // ulkopuolella. Leveässä taitossa se on vieressä eikä rullausta tarvita.
+  if (window.matchMedia("(max-width: 1080px)").matches) revealDayPanel();
 });
 
 // Kalenterisolun vihje: näyttää keskihinnan ja lähtömäärän, joita solu ei ehdi kertoa.

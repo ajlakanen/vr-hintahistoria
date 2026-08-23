@@ -799,6 +799,16 @@ a {
   top: var(--s4);
 }
 
+/* Päivä ja sen hintaväli samalle riville: väli erottaa ne toisistaan ilman
+   erotinmerkkiä. Kapealla näytöllä (tai pitkällä ohjetekstillä) sub kiertyy
+   omalle rivilleen, jolloin pystyväli pitää rivit erillään. */
+.daytitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--s4);
+}
+
 .daypanel .date {
   font-family: var(--display);
   font-size: 1.05rem;
@@ -907,9 +917,12 @@ table.dep td.time {
   padding-right: var(--s3);
 }
 
-td.train {
+/* Skoupattu taulukkoon asti, muuten `table.dep td` voittaisi paddingin (ks. yllä).
+   Ilman oikean reunan väliä pitkä junateksti törmää kapealla näytöllä hintaan. */
+table.dep td.train {
   color: var(--muted);
   font-size: 0.78rem;
+  padding-right: var(--s3);
 }
 
 td.price {
@@ -1150,6 +1163,11 @@ details.tableview th:last-child {
   }
   .cell .d {
     font-size: 0.62rem;
+  }
+  /* Väriselite vie kapealla näytöllä oman rivinsä eikä kerro mitään, mitä solun
+     oma hintaluku ei jo kertoisi. */
+  .legend {
+    display: none;
   }
 }
 

@@ -13,7 +13,8 @@ on:
 
 jobs:
   smoketest:
-    runs-on: ubuntu-latest
+    # Pidä sama versio kuin scrape.yml:ssä, jotta savutesti vastaa oikeaa ajoympäristöä.
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

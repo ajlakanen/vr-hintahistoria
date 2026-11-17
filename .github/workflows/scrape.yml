@@ -31,7 +31,10 @@ concurrency:
 
 jobs:
   scrape:
-    runs-on: ubuntu-latest
+    # Kiinnitetty versio (ei ubuntu-latest): nimikkeen siirtyminen 24.04 -> 26.04 kaatoi ajon,
+    # koska silloinen Playwright (1.60) ei tukenut uutta imagea. Kun nostat tätä, varmista
+    # ensin että lukittu Playwright tukee uutta Ubuntua (aja waf-smoketest haarasta).
+    runs-on: ubuntu-26.04
     # GitHubin kova kattokin on 6 h/job. Täysi ajo on ~3,5 h; jätetään marginaalia.
     timeout-minutes: 350
     steps:
